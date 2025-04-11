@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout, List, Avatar, Badge, Typography, Button, Row, Col, Dropdown, Menu } from 'antd';
 import {
   SearchOutlined,
@@ -10,11 +10,10 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons';
 import { Navigate } from 'react-router-dom';
+import ModalProfile from '../../components/ModalProfile';
 // import './HomeChat.css';
-
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
-
 // Dữ liệu giả lập cho danh sách cuộc trò chuyện
 const chatData = [
   {
@@ -60,24 +59,30 @@ const chatData = [
 
 ];
 
-const HomeChat = ({ setIsAuthenticated }) => {
+const HomeChat = ({ setIsAuthenticated , userProfile , avatar , setAvatar}) => {
+const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin người dùng
     // Hàm xử lý đăng xuất
   const handleLogout = () => {
     localStorage.removeItem('token'); // Xóa token
     setIsAuthenticated(false); // Cập nhật trạng thái xác thực
     window.location.href = '/'; // Chuyển hướng về trang chủ
   };
-
+  console.log(profile);
+  
   // Hàm xử lý chuyển hướng đến trang quản lý tài khoản
   const handleManageAccount = () => {
-    Navigate('/profile'); // Chuyển hướng đến trang quản lý tài khoản
+    // render modal quản lý tài khoản
+    
+
   };
   // Menu cho Dropdown
   const menu = (
   <Menu>
-    <Menu.Item key="1" icon={<UserOutlined />} onClick={handleManageAccount}>
-      Quản lý tài khoản
+    {/* Quản lý tài khoản */}
+    <Menu.Item key="1" >
+      <ModalProfile handleManageAccount = {handleManageAccount()} userProfile={userProfile} avatarContext = {avatar} setAvatarContext = {setAvatar} />
     </Menu.Item>
+
     <Menu.Item key="2" icon={<LogoutOutlined />} onClick={handleLogout}>
       Đăng xuất
     </Menu.Item>
@@ -91,7 +96,7 @@ const HomeChat = ({ setIsAuthenticated }) => {
         <div style={{ padding: '16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #e8e8e8', }}>
         <Dropdown overlay={menu} trigger={['click']}>
             <Avatar
-              src="https://randomuser.me/api/portraits/men/1.jpg"
+              src={avatar}
               style={{ cursor: 'pointer' }}
             />
           </Dropdown>
@@ -146,7 +151,7 @@ const HomeChat = ({ setIsAuthenticated }) => {
       
       </Sider>
 
-      {/* Nội dung chính bên phải */}
+      {/*slider bên phải */}
       <Content style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Row justify="center" align="middle" style={{ textAlign: 'center' }}>
           <Col>

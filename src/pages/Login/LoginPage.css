@@ -1,0 +1,63 @@
+.login-container {
+    min-height: 100vh;
+    background-color: #e6f0fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  
+  .login-row {
+    width: 100%;
+  }
+  
+  .login-form {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .logo {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  /* Hiệu ứng hover cho nút và liên kết */
+  .login-form .ant-btn-primary {
+    transition: all 0.3s ease;
+  }
+  
+  .login-form .ant-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .login-form .ant-typography a {
+    transition: color 0.3s ease;
+  }
+  
+  .login-form .ant-typography a:hover {
+    color: #40a9ff;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 576px) {
+    .login-form {
+      padding: 15px;
+    }
+  
+    .logo h2 {
+      font-size: 24px;
+    }
+  
+    .logo span {
+      font-size: 14px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .login-form {
+      padding: 20px;
+    }
+  }

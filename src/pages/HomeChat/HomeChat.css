@@ -1,0 +1,24 @@
+.ant-layout-sider {
+    background: #fff !important;
+  }
+  
+  .ant-list-item {
+    transition: background 0.3s;
+  }
+  
+  .ant-list-item:hover {
+    background: #f5f5f5;
+  }
+  
+  .ant-list-item-meta-title {
+    margin-bottom: 4px !important;
+  }
+  
+  .ant-list-item-meta-description {
+    color: #888 !important;
+    font-size: 12px !important;
+  }
+  
+  .ant-layout-content {
+    background: #fff !important;
+  }

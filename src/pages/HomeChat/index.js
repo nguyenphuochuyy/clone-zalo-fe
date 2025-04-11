@@ -9,8 +9,10 @@ import {
   MoonOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
+import { TbLockPassword } from "react-icons/tb";
 import { Navigate } from 'react-router-dom';
 import ModalProfile from '../../components/ModalProfile';
+import ModalForgetPassword from '../../components/ModalResetPassword';
 // import './HomeChat.css';
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -64,26 +66,26 @@ const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin
     // Hàm xử lý đăng xuất
   const handleLogout = () => {
     localStorage.removeItem('token'); // Xóa token
-    setIsAuthenticated(false); // Cập nhật trạng thái xác thực
-    window.location.href = '/'; // Chuyển hướng về trang chủ
+    localStorage.removeItem('avt'); // Xóa avatar
+    setIsAuthenticated(false); 
+    window.location.href = '/';
   };
   console.log(profile);
   
-  // Hàm xử lý chuyển hướng đến trang quản lý tài khoản
-  const handleManageAccount = () => {
-    // render modal quản lý tài khoản
-    
 
-  };
   // Menu cho Dropdown
   const menu = (
   <Menu>
     {/* Quản lý tài khoản */}
     <Menu.Item key="1" >
-      <ModalProfile handleManageAccount = {handleManageAccount()} userProfile={userProfile} avatarContext = {avatar} setAvatarContext = {setAvatar} />
+      <ModalProfile  userProfile={userProfile} avatarContext = {avatar} setAvatarContext = {setAvatar} />
     </Menu.Item>
 
-    <Menu.Item key="2" icon={<LogoutOutlined />} onClick={handleLogout}>
+    <Menu.Item key="2">
+      <ModalForgetPassword />
+    </Menu.Item>
+
+    <Menu.Item key="3" icon={<LogoutOutlined  style={{fontSize : 20}} />} onClick={handleLogout} style={{marginTop : 10}}  >
       Đăng xuất
     </Menu.Item>
   </Menu>
@@ -91,24 +93,22 @@ const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* Sidebar bên trái */}
-      <Sider width={300} style={{ background: '#fff', borderRight: '1px solid #e8e8e8' }}>
+      <Sider width={350} style={{ background: '#fff', borderRight: '1px solid #e8e8e8' }}>
         {/* Header của sidebar */}
         <div style={{ padding: '16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #e8e8e8', }}>
         <Dropdown overlay={menu} trigger={['click']}>
             <Avatar
               src={avatar}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer' , marginRight: '20px' }}
             />
-          </Dropdown>
-          {/* <Title level={5} style={{ margin: '0 0 0 8px', flex: 1 }}>
-            Tất cả
-          </Title> */}
-          <Button type="text" icon={<SearchOutlined />} />
-          <Button type="text" icon={<MessageOutlined />} />
-          <Button type="text" icon={<TeamOutlined />} />
-          <Button type="text" icon={<UserOutlined />} />
-          <Button type="text" icon={<SettingOutlined />} onClick={handleLogout} />
+        </Dropdown>
+          <Button type="text" icon={<SearchOutlined style={{fontSize : '20px'}} />} />
+          <Button type="text" icon={<MessageOutlined style={{fontSize : '20px'}}/>} />
+          <Button type="text" icon={<TeamOutlined style={{fontSize : '20px'}}/>} />
+          <Button type="text" icon={<UserOutlined style={{fontSize : '20px'}}/>} />
+          <Button type="text" icon={<SettingOutlined style={{fontSize : '20px'}}/>} onClick={handleLogout} />
         </div>
+
         {/* Danh sách cuộc trò chuyện */}
             <List
           itemLayout="horizontal"

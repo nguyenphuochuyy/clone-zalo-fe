@@ -27,7 +27,7 @@ const RegisterPage = () => {
       });
       const data = await response.json();
       if(response.ok) {
-   
+  
         message.success('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.');
         navigate('/verify-email', { state: { email: values.email } });
       }
@@ -66,7 +66,7 @@ const RegisterPage = () => {
               onFinish={onFinish}
               layout="vertical"
             >
-              {/* Trường số điện thoại */}
+         
              
               {/* Trường email */}
               <Form.Item

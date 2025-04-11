@@ -7,7 +7,7 @@ const { Title, Text } = Typography;
 const HomePage = () => {
   return (
     <div className="download-container">
-      {/* Header */}
+  
       <div className="header">
         <Title level={3} style={{ color: '#0068FF', margin: 0 }}>
           Zalo
@@ -15,13 +15,12 @@ const HomePage = () => {
         <Text className="header-link">Đăng nhập</Text>
       </div>
 
-      {/* Main Content */}
+    
       <div className="content">
         <Row justify="center" align="middle" className="content-row">
           <Col xs={22} sm={20} md={16} lg={12} xl={10}>
             <div className="download-box">
               <Row gutter={[32, 32]} align="middle">
-                {/* Left Section: Text and Buttons */}
                 <Col xs={24} md={12}>
                   <Title level={2}>Tải Zalo PC cho máy tính</Title>
                   <Text>
@@ -62,7 +61,7 @@ const HomePage = () => {
                   </div>
                 </Col>
 
-                {/* Right Section: Image */}
+ 
                 <Col xs={24} md={12}>
                   <Image
                     src="https://stc-zaloprofile.zdn.vn/pc/v1/images/img_pc.png"
@@ -80,7 +79,7 @@ const HomePage = () => {
       {/* Footer */}
       <div className="footer">
         <Text>
-          © 2012 - 2025 sản phẩm của nhóm 8 - CNMM - Khoa CNTT - ĐH Công Nghiệp Thành Phố Hồ Chí Minh
+          © 2025 sản phẩm của nhóm 8 - CNMM - Khoa CNTT - ĐH Công Nghiệp Thành Phố Hồ Chí Minh
         </Text>
       </div>
     </div>

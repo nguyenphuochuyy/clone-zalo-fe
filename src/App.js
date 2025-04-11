@@ -7,6 +7,7 @@ import RegisterPage from './pages/Register/index.js';
 import VerifyEmailPage from './pages/VerifyEmailPage/index.js';
 import VerifyTokenPage from './pages/VerifyTokenPage/index.js';
 import HomeChat from './pages/HomeChat/index.js';
+import ForgetPasswordPage from './pages/ForgetPassword/index.js';
 const { Sider, Content } = Layout;
 
 const App = () => {
@@ -46,6 +47,7 @@ const App = () => {
     
   }
 , [avt]); // Chạy lại khi token thay đổi
+
   return (
       <Routes>
         {/* Route trang chủ hoặc login dựa vào trãng thái đăng nhập */}
@@ -90,6 +92,10 @@ const App = () => {
         <Route 
           path='/api/auth/verify-email'
           element={ isAuthenticated ? (<Navigate to={"/home"}/> ) : <VerifyTokenPage />} // Trang xác thực token
+        />
+        <Route
+          path='/api/auth/reset-password'
+          element={<ForgetPasswordPage />} // Trang quên mật khẩu
         />
       </Routes>
 

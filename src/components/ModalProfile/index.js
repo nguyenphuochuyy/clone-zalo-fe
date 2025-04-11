@@ -25,7 +25,7 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
     setIsModalOpen(false);
   };
 
-// Xử lý khi chọn file ảnh
+
    // Xử lý khi chọn file ảnh
   const handleBeforeUpload = (file) => {
     const isImage = file.type.startsWith('image/');
@@ -33,7 +33,6 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
       message.error('Bạn chỉ có thể tải lên file ảnh!');
       return false;
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       setAvatar(e.target.result); // Hiển thị preview của ảnh
@@ -48,7 +47,6 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
       message.warning('Vui lòng chọn ảnh trước khi cập nhật!');
       return;
     }
-
     const formData = new FormData();
     formData.append('avatar', file);
     try {

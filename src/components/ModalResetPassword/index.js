@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {  Button, Form, Input, message, Modal, } from 'antd';
+import { RiLockPasswordLine } from "react-icons/ri";
 import {
     EditOutlined,
 
@@ -11,6 +12,7 @@ import { TbLockPassword } from "react-icons/tb";
 const ModalForgetPassword = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const [loadings, setLoadings] = useState(false);
   const showModal = () => {
     setIsModalOpen(true);
   };
@@ -22,24 +24,31 @@ const ModalForgetPassword = () => {
   };
     //submit form
     const handleSubmit = async (values) => {
-        const { email } = values;
-    
+        const currentPassword = values.currentPassword;
+        const newPassword = values.newPassword;
+        setLoadings(true);
         try {
-          // Gửi yêu cầu đến API để gửi link reset password (giả lập)
-          const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+          // Gửi yêu cầu đến API để cập nhật mật khẩu
+          const response = await fetch('http://localhost:5000/api/user/update-password', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
             },
-            body: JSON.stringify({ email }),
-          });
-    
+            body: JSON.stringify({currentPassword, newPassword}) 
+          
+          })
           const data = await response.json();
-    
           if (response.ok) {
-            message.success('Link đặt lại mật khẩu đã được gửi! Vui lòng kiểm tra email của bạn.');
+            // Xử lý thành công thông báo thành công sau 2 giây thì chuyển hướng về trang đăng nhập
+            setLoadings(false);
+            message.success('Đổi mật khẩu thành công! Vui lòng đăng nhập lại!');
+            localStorage.removeItem('token'); // Xóa token khỏi localStorage
             setIsModalOpen(false);
             form.resetFields();
+            setTimeout(() => {
+              window.location.href = '/login'; // Chuyển hướng đến trang đăng nhập
+            }, 3000);
           } else {
             message.error(data.message || 'Có lỗi xảy ra khi gửi link đặt lại mật khẩu!');
           }
@@ -49,17 +58,18 @@ const ModalForgetPassword = () => {
       }; 
   return (
     <>
-    <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}} onClick={showModal}>
-          <p>Quên mật khẩu</p>
-    </div>
-      <Modal open={isModalOpen} onOk={handleOk} onCancel={handleCancel} title="Thông tin tài khoản"
+    
+     <div style={{display: 'flex', alignItems: 'center'}} onClick={showModal}>
+          <RiLockPasswordLine style={{fontSize : '16px' , marginRight : '5px'}} ></RiLockPasswordLine>
+          <p>Đổi mật khẩu</p>
+        </div>
+      <Modal open={isModalOpen} onOk={handleOk} onCancel={handleCancel} 
         footer={null}
         width={400}
     >
-    
         <div>
             <Title level={5} style={{ margin: 0 , fontSize: '19px' , fontWeight: '500' , color: '#333' }}>
-                Quên mật khẩu
+                Đổi mật khẩu
             </Title>
         </div>
         <Form
@@ -69,19 +79,44 @@ const ModalForgetPassword = () => {
           style={{ marginTop: 16 }}
         >
           <Form.Item
-            name="email"
-            label="Email đã đăng ký"
+            name="currentPassword"
+            label="Mật hiện tại"
             rules={[
-              { required: true, message: 'Vui lòng nhập email!' },
-              { type: 'email', message: 'Email không hợp lệ!' },
+              { required: true, message: 'Vui lòng nhập mật khẩu hiện tại!' },
             ]}
           >
-            <Input placeholder="Nhập email đã đăng ký" />
+            <Input.Password placeholder="Nhập mật khẩu hiện tại" />
           </Form.Item>
-
+          <Form.Item
+            name="newPassword"
+            label="Mật khẩu mới"
+            rules={[
+              { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
+            ]}
+          >
+            <Input.Password placeholder="Nhập mật khẩu mới"  />
+          </Form.Item>
+          {/* xác nhận mật khẩu mới */}
+          <Form.Item
+            name="confirmPassword"
+            label="Xác nhận mật khẩu mới"
+            rules={[
+              { required: true, message: 'Vui lòng xác nhận mật khẩu mới!' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Mật khẩu không khớp!'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="Xác nhận mật khẩu mới" /> 
+          </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>
-              Gửi link đặt lại mật khẩu
+            <Button loading = {loadings} type="primary" htmlType="submit" block>
+              Đổi mật khẩu
             </Button>
           </Form.Item>
         </Form>

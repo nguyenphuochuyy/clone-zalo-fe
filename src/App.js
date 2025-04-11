@@ -15,14 +15,14 @@ const App = () => {
   const token = localStorage.getItem('token'); // Lấy token từ localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(!!token); // Trạng thái xác thực
   const [profile, setProfile] = useState(null); // Trạng thái thông tin người dùng
-  const [avt , setAvt] = useState(localStorage.getItem('avt') || 'https://randomuser.me/api/portraits/men/1.jpg' ); // Trạng thái avatar người dùng
+  const [avt , setAvt] = useState(localStorage.getItem('avt') || '' ); // Trạng thái avatar người dùng
   useEffect(() => {
     if (token) {
       setIsAuthenticated(true); // Nếu có token, đặt trạng thái xác thực là true
     } else {
       setIsAuthenticated(false); // Ngược lại, đặt trạng thái xác thực là false
     }
-    localStorage.setItem('avt', avt); // Lưu avatar vào localStorage
+    
     const getProfileUser = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/user/profile', {
@@ -34,7 +34,7 @@ const App = () => {
         if (response.status === 200) {
           const data = await response.json();
           setProfile(data); // Cập nhật thông tin người dùng
-          
+          localStorage.setItem('avt', data.avatarUrl); // Lưu avatar vào localStorage
         } else {
           console.error('Lỗi khi lấy dữ liệu người dùng:', response.statusText);
         }

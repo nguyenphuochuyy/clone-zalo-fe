@@ -66,7 +66,6 @@ const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin
     // Hàm xử lý đăng xuất
   const handleLogout = () => {
     localStorage.removeItem('token'); // Xóa token
-    localStorage.removeItem('avt'); // Xóa avatar
     setIsAuthenticated(false); 
     window.location.href = '/';
   };
@@ -155,23 +154,21 @@ const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin
       <Content style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Row justify="center" align="middle" style={{ textAlign: 'center' }}>
           <Col>
-            <Title level={3}>Chào mừng đến với Zalo PC!</Title>
+            <Title level={3}>Chào mừng đến với Zalo !</Title>
             <Text style={{ display: 'block', marginBottom: 16 }}>
               Khám phá những tiện ích hỗ trợ làm việc và trò chuyện cùng <br />
               người thân, bạn bè được tối ưu hóa cho máy tính của bạn.
             </Text>
             <img
-              src="https://chat.zalo.me/assets/welcome.1f90950d04c1c750e7b8e85a697f627.png"
-              alt="Welcome to Zalo PC"
+              src="https://chat.zalo.me/assets/quick-message-onboard.3950179c175f636e91e3169b65d1b3e2.png"
+              alt="Welcome to Zalo "
               style={{ width: '100%', maxWidth: 400, marginBottom: 16 }}
             />
-            <Title level={4}>Giao diện Dark Mode</Title>
+            <Title level={4}>Nhắn tin nhiều hơn soạn thảo ít hơn</Title>
+        
             <Text style={{ display: 'block', marginBottom: 16 }}>
-              Thử ngay và bắt vẻ một chế độ giao diện tối trên Zalo PC
+              Sử dụng tin nhắn nhanh để gửi tin nhắn mà không cần mở cửa sổ chat
             </Text>
-            <Button type="primary" icon={<MoonOutlined />}>
-              Thử ngay
-            </Button>
           </Col>
         </Row>
       </Content>

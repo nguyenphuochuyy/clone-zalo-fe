@@ -1,8 +1,9 @@
 import React from 'react';
-import { Form, Input, Button, Typography, Row, Col, message } from 'antd';
+import { Form, Input, Button, Typography, Row, Col, message, Modal } from 'antd';
 import { LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import { AiOutlineMail } from "react-icons/ai";
 import './LoginPage.css'; // File CSS tùy chỉnh
+import ModalForgetPassword from '../../components/ModalResetPassword';
 
 const { Title, Text, Link } = Typography;
 
@@ -27,7 +28,6 @@ const LoginPage = () => {
         if (response.ok) {
           const data = await response.json();
           localStorage.setItem('token', data.token); // Lưu token vào localStorage
-
           message.success('Đăng nhập thành công!'); // Hiển thị thông báo thành công
           // Chuyển hướng đến trang chính sau khi đăng nhập thành công
           window.location.href = '/'; // Thay đổi đường dẫn đến trang chính của bạn
@@ -110,11 +110,13 @@ const LoginPage = () => {
                   style={{ display: 'block', textAlign: 'center', marginBottom: 8 }}
                   href="#"
                 >
-                  Quên mật khẩu
+                   <ModalForgetPassword/>
                 </Link>
+
                 <Link
                   style={{ display: 'block', textAlign: 'center' }}
                   href="/register"
+                
                 >
                   Chưa có tài khoản? Đăng ký
                 </Link>

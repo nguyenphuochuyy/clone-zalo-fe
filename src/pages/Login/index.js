@@ -3,7 +3,7 @@ import { Form, Input, Button, Typography, Row, Col, message, Modal } from 'antd'
 import { LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import { AiOutlineMail } from "react-icons/ai";
 import './LoginPage.css'; // File CSS tùy chỉnh
-import ModalForgetPassword from '../../components/ModalResetPassword';
+import ModalForgetPassword from '../../components/ModalForgetPassword';
 
 const { Title, Text, Link } = Typography;
 
@@ -32,17 +32,15 @@ const LoginPage = () => {
           // Chuyển hướng đến trang chính sau khi đăng nhập thành công
           window.location.href = '/'; // Thay đổi đường dẫn đến trang chính của bạn
         } else {
-          console.error('Login failed:', response.statusText);
+          console.error('Đăng nhập:', response.statusText);
           // Xử lý lỗi đăng nhập tại đây
           const errorData = await response.json();
           if (errorData.message) {
             message.error(errorData.message); // Hiển thị thông báo lỗi từ server
-          } else {
-            message.error('Đăng nhập thất bại!'); // Thông báo lỗi chung
           }
         }
       } catch (error) {
-        console.error('Error during login:', error);
+        console.error('Lỗi khi đăng nhập:', error);
       }
     }
     fetchLogin(); // Gọi hàm đăng nhập
@@ -73,10 +71,10 @@ const LoginPage = () => {
               onFinish={onFinish}
               layout="vertical"
             >
-              {/* Trường số điện thoại */}
+              {/* Trường email */}
               <Form.Item
                 name="email"
-                rules={[{ required: true, message: 'Vui lòng nhập số điện thoại!' }]}
+                rules={[{ required: true, message: 'Vui lòng nhập email!' }]}
               >
                 <Input
                   prefix={<AiOutlineMail />}
@@ -106,12 +104,10 @@ const LoginPage = () => {
 
               {/* Liên kết quên mật khẩu và đăng ký */}
               <Form.Item>
-                <Link
-                  style={{ display: 'block', textAlign: 'center', marginBottom: 8 }}
-                  href="#"
-                >
-                   <ModalForgetPassword/>
-                </Link>
+              
+                 <ModalForgetPassword />
+                   
+                
 
                 <Link
                   style={{ display: 'block', textAlign: 'center' }}

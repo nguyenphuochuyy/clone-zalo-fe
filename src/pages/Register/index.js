@@ -102,7 +102,10 @@ const RegisterPage = () => {
               {/* Trường mật khẩu */}
               <Form.Item
                 name="password"
-                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+                rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' },
+                  { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' },
+               
+                ]}
               >
                 <Input.Password
                   prefix={<LockOutlined />}

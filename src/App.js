@@ -7,7 +7,8 @@ import RegisterPage from './pages/Register/index.js';
 import VerifyEmailPage from './pages/VerifyEmailPage/index.js';
 import VerifyTokenPage from './pages/VerifyTokenPage/index.js';
 import HomeChat from './pages/HomeChat/index.js';
-import ForgetPasswordPage from './pages/ForgetPassword/index.js';
+import ResetPasswordPage from './pages/ResetPassword/index.js';
+// import ForgetPasswordPage from './pages/ForgetPassword/index.js';
 const { Sider, Content } = Layout;
 
 const App = () => {
@@ -15,7 +16,7 @@ const App = () => {
   const token = localStorage.getItem('token'); // Lấy token từ localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(!!token); // Trạng thái xác thực
   const [profile, setProfile] = useState(null); // Trạng thái thông tin người dùng
-  const [avt , setAvt] = useState(localStorage.getItem('avt') || '' ); // Trạng thái avatar người dùng
+  const [avt , setAvt] = useState(localStorage.getItem('avt') || 'https://randomuser.me/api/portraits/men/1.jpg' ); // Trạng thái avatar người dùng
   useEffect(() => {
     if (token) {
       setIsAuthenticated(true); // Nếu có token, đặt trạng thái xác thực là true
@@ -89,13 +90,14 @@ const App = () => {
             )
           } // Trang xác thực email
         />
+        
         <Route 
           path='/api/auth/verify-email'
           element={ isAuthenticated ? (<Navigate to={"/home"}/> ) : <VerifyTokenPage />} // Trang xác thực token
         />
         <Route
           path='/api/auth/reset-password'
-          element={<ForgetPasswordPage />} // Trang quên mật khẩu
+          element={<ResetPasswordPage/>} // Trang quên mật khẩu
         />
       </Routes>
 

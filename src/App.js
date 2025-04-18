@@ -9,10 +9,9 @@ import VerifyTokenPage from './pages/VerifyTokenPage/index.js';
 import HomeChat from './pages/HomeChat/index.js';
 import ResetPasswordPage from './pages/ResetPassword/index.js';
 // import ForgetPasswordPage from './pages/ForgetPassword/index.js';
-const { Sider, Content } = Layout;
+
 
 const App = () => {
-  
   const token = localStorage.getItem('token'); // Lấy token từ localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(!!token); // Trạng thái xác thực
   const [profile, setProfile] = useState(null); // Trạng thái thông tin người dùng
@@ -34,6 +33,7 @@ const App = () => {
         });
         if (response.status === 200) {
           const data = await response.json();
+          localStorage.setItem('user', JSON.stringify(data)); // Lưu thông tin người dùng vào localStorage
           setProfile(data); // Cập nhật thông tin người dùng
           localStorage.setItem('avt', data.avatarUrl); // Lưu avatar vào localStorage
         } else {

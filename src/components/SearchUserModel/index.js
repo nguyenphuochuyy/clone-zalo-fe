@@ -26,7 +26,6 @@ const SearchUserModel = ({ setSelectedUser }) => {
     const handleSendMessage = () => {
         setIsModalOpen(false); // Đóng modal sau khi gửi tin nhắn
     
-        
         setSelectedUser(user); // Gửi thông tin người dùng đã tìm kiếm cho component cha
     }
     // hàm gọi api tìm kiếm người dùng theo email trả về người dùng

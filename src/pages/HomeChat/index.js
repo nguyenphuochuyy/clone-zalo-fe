@@ -21,46 +21,74 @@ import ModalForgetPassword from '../../components/ModalResetPassword';
 import io from 'socket.io-client';
 import { notification } from 'antd';
 import MessageContent from '../../components/MessageContent/index.js';
-import EmojiPicker from 'emoji-picker-react'; // Thêm thư viện emoji
+import EmojiPicker from 'emoji-picker-react';
 import SearchUserModel from '../../components/SearchUserModel/index.js';
 import ListFriendModal from '../../components/ListFriendModal/index.js';
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
-  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user'))); // Lấy thông tin người dùng từ localStorage
-  const [listConversation, setListConversation] = useState([]); // Danh sách cuộc trò chuyện của người dùng
-  const [selectedUser, setSelectedUser] = useState(null); // Người dùng được chọn
-  const [messages, setMessages] = useState([]); // Danh sách tin nhắn 
-  const [messageInput, setMessageInput] = useState('');// Nội dung tin nhắn đang nhập
-  const socketRef = useRef(null); // Tham chiếu đến socket
-  const messagesEndRef = useRef(null); // Tham chiếu đến cuối danh sách tin nhắn
-  const [pendingMessages, setPendingMessages] = useState([]); // Lưu trữ tin nhắn đến khi chưa có selectedUser
-  const [loading, setLoading] = useState(false); // Trạng thái tải lên file
-  const [fileList, setFileList] = useState([]); // Danh sách file đã chọn
+  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user')));
+  const [listConversation, setListConversation] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState('');
+  const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const [pendingMessages, setPendingMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fileList, setFileList] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false); // Thêm trạng thái kết nối
+  const [isFriendListModalVisible, setIsFriendListModalVisible] = useState(false);
+
+  const handleOpenFriendList = () => {
+    setIsFriendListModalVisible(true);
+    console.log('Opening Friend List Modal');
+console.log('Current userProfile:', userProfile);
+console.log('Current userProfile.userId:', userProfile?.userId);
+console.log('Is socket connected:', isSocketConnected);
+  };
+
+  const handleCloseFriendList = () => {
+    setIsFriendListModalVisible(false);
+  };
+
+  const handleCancelFriendListModal = () => {
+    setIsFriendListModalVisible(false);
+  };
 
 
-  // Memoize deletedMessages để tránh đọc localStorage nhiều lần
   const deletedMessages = useMemo(() => {
     return JSON.parse(localStorage.getItem('deletedMessages') || '[]');
-  }, [messages]); // Cập nhật khi messages thay đổi (do xóa mới)
+  }, [messages]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('avt');
-    socketRef.current.disconnect(); // Ngắt kết nối socket khi đăng xuất
+    setCurrentUser(null);
+    setMessages([]);
+    setSelectedUser(null);
+    setPendingMessages([]);
+    setListConversation([]);
+    setMessageInput('');
+    setFileList([]);
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+    setIsAuthenticated(false);
     window.location.href = '/';
   };
-  // Xử lý chọn emoji
+
   const handleEmojiClick = (emojiObject) => {
     setMessageInput((prev) => prev + emojiObject.emoji);
   };
-  // Xử lý khi thay đổi file
+  
+  
+
   const handleUploadChange = ({ fileList }) => {
-    // Giới hạn chỉ chọn 1 file
     const filteredFileList = fileList.slice(-1).filter((file) => {
-      // Kiểm tra trạng thái file
       if (file.status === 'error') {
         message.error(`${file.name} tải lên thất bại.`);
         return false;
@@ -70,19 +98,15 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
     setFileList(filteredFileList);
   };
 
-  // Xử lý trước khi upload (chặn upload tự động)
   const handleBeforeUpload = (file) => {
-    // Kiểm tra kích thước file (ví dụ: tối đa 5MB)
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
       message.error('File phải nhỏ hơn 5MB!');
       return false;
     }
-    // Trả về false để chặn upload tự động
     return false;
-  }
- 
-  // lấy danh sách cuộc trò chuyện của người dùng hiện tại 
+  };
+
   const fetchConversations = async () => {
     if (!currentUser) return;
     try {
@@ -102,7 +126,6 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
     }
   };
 
-  // Đánh dấu tin nhắn là đã đọc khi người dùng chọn cuộc trò chuyện
   const markMessagesAsRead = async (conversationId) => {
     try {
       const response = await fetch(`http://localhost:5000/api/chat/mark-read`, {
@@ -125,105 +148,22 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
     }
   };
 
- 
-  // hàm tạo kết nối socket
-  // useEffect(() => {
-  //   if (!currentUser) return;
-  //   socketRef.current = io('http://localhost:5000', {
-  //     auth: { token: localStorage.getItem('token'), userId: currentUser.userId },
-  //     reconnection: true,
-  //     reconnectionAttempts: 5,
-  //   });
+  useEffect(() => {
+    if (!currentUser) {
+      console.log('Không có currentUser, bỏ qua khởi tạo Socket.IO');
+      return;
+    }
 
-  //   socketRef.current.on('connect', () => {
-  //     console.log('Đã kết nối tới Socket.IO server');
-  //   });
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('Không có token, bỏ qua khởi tạo Socket.IO');
+      message.error('Token không hợp lệ, vui lòng đăng nhập lại');
+      return;
+    }
 
-  //   socketRef.current.on('connect_error', (error) => {
-  //     console.error('Kết nối tới Socket.io server lỗi', error);
-  //     alert('Không thể kết nối tới server chat, vui lòng thử lại sau');
-  //   });
-  //   socketRef.current.on('disconnect', (reason) => {
-  //     console.warn('Socket.IO ngắt kết nối:', reason);
-  //     if (reason === 'io server disconnect') {
-  //       // Server chủ động ngắt, thử kết nối lại
-  //       socketRef.current.connect();
-  //     }
-  //   });
-  //   socketRef.current.on('error', (error) => {
-  //     console.error('Lỗi từ server:', error.message);
-  //     alert(error.message);
-  //   });
-
-  //   socketRef.current.on(`receiveMessage_${currentUser.userId}`, (message) => {
-  //     // Kiểm tra định dạng tin nhắn
-  //     if (!message || !message.conversationId || !message.senderId || !message.timestamp) {
-  //       console.error('Tin nhắn không hợp lệ:', message);
-  //       return;
-  //     }
-  //     // Tạo conversationId từ selectedUser 
-  //     const currentConversationId = (selectedUser ? [currentUser.userId, selectedUser.userId].sort().join('#') : null);
-  //     if (message.conversationId === currentConversationId &&
-  //       message.senderId !== currentUser.userId &&
-  //       message.senderId === selectedUser.userId &&
-  //       message.receiverId === currentUser.userId) {
-
-  //       // Thêm tin nhắn vào messages, tránh trùng lặp
-  //       setMessages((prevMessages) => {
-  //         if (prevMessages.some((msg) => msg.timestamp === message.timestamp && msg.content === message.content)) {
-  //           return prevMessages; // Tránh trùng lặp
-  //         }
-  //         const newMessages = [...prevMessages, message];
-  //         return newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  //       });
-
-  //       // Đánh dấu tin nhắn là đã đọc
-  //       const conversationId = [currentUser.userId, selectedUser.userId].sort().join('#');
-  //       markMessagesAsRead(conversationId).catch((error) => {
-  //         console.error('Lỗi khi đánh dấu tin nhắn đã đọc:', error);
-  //       });
-
-  //     }
-
-  //     else {
-  //       // Lưu tin nhắn vào pendingMessages, tránh trùng lặp
-  //       setPendingMessages((prev) => {
-  //         return [...prev, message];
-  //       });
-  //     }
-  //     // Cập nhật danh sách cuộc trò chuyện
-  //     fetchConversations();
-  //   });
-
-  //   fetchConversations();
-
-
-  //   return () => {
-  //     if (socketRef.current) {
-  //       socketRef.current.disconnect();
-  //       socketRef.current.off(`receiveMessage_${currentUser.userId}`);
-  //       console.log('Mất kết nối tới Socket.IO server');
-  //     }
-  //   };
-  // }, [currentUser]);
-  // useEffect cho fetchConversations
-useEffect(() => {
-  if (!currentUser) return;
-  fetchConversations();
-}, [currentUser, setIsAuthenticated]); // Cập nhật danh sách cuộc trò chuyện khi currentUser hoặc messages thay đổi
-
- // useEffect cho Socket.IO
-useEffect(() => {
-  if (!currentUser || !localStorage.getItem('token')) {
-    console.error('Không có currentUser hoặc token, không khởi tạo socket');
-    message.error('Vui lòng đăng nhập lại');
-    setIsAuthenticated(false);
-    return;
-  }
-
-  if (!socketRef.current) {
+    console.log('Khởi tạo Socket.IO với userId:', currentUser.userId);
     socketRef.current = io('http://localhost:5000', {
-      auth: { token: localStorage.getItem('token'), userId: currentUser.userId },
+      auth: { token, userId: currentUser.userId },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -232,16 +172,22 @@ useEffect(() => {
     });
 
     socketRef.current.on('connect', () => {
-      console.log('Đã kết nối tới Socket.IO server');
+      console.log('Đã kết nối tới Socket.IO server, socket.id:', socketRef.current.id);
+      setIsSocketConnected(true);
     });
 
     socketRef.current.on('connect_error', (error) => {
-      console.error('Kết nối tới Socket.IO server lỗi:', error); 
+      console.error('Kết nối tới Socket.IO server lỗi:', error.message);
+      setIsSocketConnected(false);
       message.error('Không thể kết nối tới server chat, vui lòng thử lại sau');
     });
 
     socketRef.current.on('disconnect', (reason) => {
       console.warn('Socket.IO ngắt kết nối:', reason);
+      setIsSocketConnected(false);
+      if (reason === 'io server disconnect') {
+        socketRef.current.connect();
+      }
     });
 
     socketRef.current.on('error', (error) => {
@@ -250,56 +196,35 @@ useEffect(() => {
     });
 
     socketRef.current.on(`receiveMessage_${currentUser.userId}`, (message) => {
-      if (!message || !message.conversationId || !message.senderId || !message.timestamp || !message.messageId) {
+      if (!message || !message.conversationId || !message.senderId || !message.timestamp) {
         console.error('Tin nhắn không hợp lệ:', message);
         return;
       }
-      // const currentConversationId = selectedUser ? [currentUser.userId, selectedUser.userId].sort().join('#') : null;
-      const isActiveConversation =
-        selectedUser &&
-        message.senderId === selectedUser.userId && // Người gửi là người được chọn trong giao diện
-        message.receiverId === currentUser.userId; // Tin nhắn được gửi đến người dùng hiện tại
+      const currentConversationId = selectedUser ? [currentUser.userId, selectedUser.userId].sort().join('#') : null;
+      if (
+        message.conversationId === currentConversationId &&
+        message.senderId !== currentUser.userId &&
+        message.senderId === selectedUser.userId &&
+        message.receiverId === currentUser.userId
+      ) {
+        setMessages((prevMessages) => {
+          if (prevMessages.some((msg) => msg.timestamp === message.timestamp && msg.content === message.content)) {
+            return prevMessages;
+          }
+          const newMessages = [...prevMessages, message];
+          return newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        });
 
-        if (isActiveConversation) {
-          // Hiển thị tin nhắn ngay lập tức nếu người nhận đang mở cuộc hội thoại với người gửi
-          setMessages((prev) => {
-            if (prev.some((msg) => msg.messageId === message.messageId)) return prev;
-            return [...prev, message].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-          });
+        const conversationId = [currentUser.userId, selectedUser.userId].sort().join('#');
+        markMessagesAsRead(conversationId).catch((error) => {
+          console.error('Lỗi khi đánh dấu tin nhắn đã đọc:', error);
+        });
+      } else {
+        setPendingMessages((prev) => [...prev, message]);
+      }
+      fetchConversations();
+    });  
   
-          // Đánh dấu tin nhắn là đã đọc
-  
-            const conversationId = [currentUser.userId, selectedUser.userId].sort().join('#'); // Vẫn cần conversationId để gọi API mark-read
-              markMessagesAsRead(conversationId);
-   
-        } 
-        else {
-          // Lưu tin nhắn vào pendingMessages nếu không ở cuộc hội thoại đúng
-          setPendingMessages((prev) => {
-            if (prev.some((msg) => msg.messageId === message.messageId)) return prev;
-            return [...prev, message];
-          });
-        }
-        fetchConversations();
-    });
-    
-  }
-
-  return () => {
-    if (socketRef.current) {
-      socketRef.current.off('connect');
-      socketRef.current.off('connect_error');
-      socketRef.current.off('disconnect');
-      socketRef.current.off('error');
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      console.log('Mất kết nối tới Socket.IO server');
-    }
-  };
-
-}, [currentUser, setIsAuthenticated , selectedUser]);
-
-  // hàm gọi API để lấy danh sách tin nhắn khi người dùng chọn cuộc trò chuyện
   useEffect(() => {
     if (!selectedUser) return;
     const fetchMessages = async () => {
@@ -313,30 +238,23 @@ useEffect(() => {
           throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        // Kết hợp tin nhắn từ API và tin nhắn đang chờ xử lý 
         const newMessages = [...data, ...pendingMessages.filter(
           (msg) =>
             (msg.senderId === selectedUser.userId && msg.receiverId === currentUser.userId) ||
             (msg.senderId === currentUser.userId && msg.receiverId === selectedUser.userId)
         )].reduce((acc, msg) => {
-          if (
-            !acc.some(
-              (existing) =>
-                existing.timestamp === msg.timestamp
-            )
-          ) {
+          if (!acc.some((existing) => existing.timestamp === msg.timestamp)) {
             acc.push(msg);
           }
           return acc;
         }, []);
 
-        // Sắp xếp tin nhắn theo timestamp
         newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         setMessages(newMessages);
-        // Đánh dấu tin nhắn là đã đọc
+
         const conversationId = [currentUser.userId, selectedUser.userId].sort().join('#');
-        markMessagesAsRead(conversationId);
-        // Xóa các tin nhắn đã hiển thị khỏi pendingMessages
+        await markMessagesAsRead(conversationId);
+
         setPendingMessages((prev) =>
           prev.filter(
             (msg) =>
@@ -348,118 +266,22 @@ useEffect(() => {
         );
       } catch (error) {
         console.error('Lỗi khi lấy danh sách tin nhắn:', error);
-        alert('Không thể tải tin nhắn, vui lòng thử lại');
+        message.error('Không thể tải tin nhắn, vui lòng thử lại');
       }
     };
 
     fetchMessages();
-    // Cập nhật khi selectedUser hoặc currentUser thay đổi hoac co tin nhan mới từ socket
-  }, [ currentUser , currentUser , pendingMessages]); // Cập nhật khi selectedUser hoặc currentUser thay đổi
-  //cuộn xuống cuối danh sách tin nhắn khi có tin nhắn mới từ server 
+  }, [selectedUser]);
 
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (!isDeleting && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages ]); // Cuộn xuống khi messages hoặc selectedUser thay đổi
+  }, [messages, isDeleting]);
 
-  // hàm gửi tin nhắn 
-  // const handleSendMessage = async () => {
-  //   if (!currentUser || !selectedUser) {
-  //     alert('Vui lòng đăng nhập và chọn người nhận trước khi gửi tin nhắn');
-  //     return;
-  //   }
-  //   // tạo formData để gửi tin nhắn
-  //   const formData = new FormData();
-  //   formData.append('senderId', currentUser.userId);
-  //   formData.append('receiverId', selectedUser.userId);
-  //   formData.append('content', messageInput);
-  //   formData.append('type', fileList.length > 0 ? 'file' : 'text');
-  //   formData.append('isRead', false);
-  //   formData.append('timestamp', new Date().toISOString());
-  //   // Thêm file nếu có
-  //   if (fileList.length > 0 && fileList[0].originFileObj) {
-  //     formData.append('file', fileList[0].originFileObj);
-  //   }
-  //   // Tạo một đối tượng tin nhắn mới và thêm vào danh sách tin nhắn cục bộ
-  //   const newMessage = {
-  //     senderId: currentUser.userId,
-  //     receiverId: selectedUser.userId,
-  //     content: messageInput,
-  //     type: fileList.length > 0 ? 'file' : 'text',
-  //     fileUrl: fileList.length > 0 ? fileList[0].originFileObj : null,
-  //     isRead: false,
-  //     timestamp: new Date().toISOString(),
-  //   };
-
-  //   setMessages((prevMessages) => [...prevMessages, newMessage]);
-  //   try {
-  //     const response = await fetch('http://localhost:5000/api/chat/', {
-  //       method: 'POST',
-  //       headers: {
-  //         Authorization: `Bearer ${localStorage.getItem('token')}`,
-  //       },
-  //       body: formData,
-  //     });
-  //     if (!response.ok) {
-  //       throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}`);
-  //     }
-  //     // Lấy tin nhắn từ phản hồi server
-  //     const savedMessage = await response.json();
-  //     // Cập nhật tin nhắn cục bộ với dữ liệu từ server
-  //     setMessages((prevMessages) =>
-  //       prevMessages.map((msg) =>
-  //         msg.senderId === newMessage.senderId &&
-  //           msg.receiverId === newMessage.receiverId &&
-  //           msg.content === newMessage.content &&
-  //           msg.timestamp === newMessage.timestamp
-  //           ? { ...savedMessage }
-  //           : msg
-  //       )
-  //     );
-  //     setMessageInput(''); // Xóa nội dung ô nhập sau khi gửi tin nhắn
-  //     setFileList([]); // Xóa danh sách file đã chọn sau khi gửi tin nhắn
-  //     fetchConversations(); // Cập nhật danh sách cuộc trò chuyện sau khi gửi tin nhắn
-  //   } catch (error) {
-  //     console.error('Lỗi khi gửi tin nhắn:', error);
-  //     message.error('Không thể gửi tin nhắn, vui lòng thử lại');
-  //   }
-  // };
-  // const handleSendMessage = () => {
-
-  //   if (!currentUser || !selectedUser) {
-  //     message.error('Vui lòng đăng nhập và chọn người nhận trước khi gửi tin nhắn');
-  //     return;
-  //   }
-  //   if (!messageInput && fileList.length === 0) {
-  //     message.warning('Vui lòng nhập nội dung hoặc chọn file để gửi');
-  //     return;
-  //   }
-  //   if (!socketRef.current) {
-  //     message.error('Không thể kết nối tới server, vui lòng thử lại');
-  //     return;
-  //   }
-  //   const messageData = {
-  //     senderId: currentUser.userId,
-  //     receiverId: selectedUser.userId,
-  //     content: messageInput || null,
-  //     type: fileList.length > 0 ? 'file' : 'text',
-  //     fileUrl: fileList.length > 0 ? fileList[0].url : null,
-  //     timestamp: new Date().toISOString(),
-  //   };
-  //   socketRef.current.emit('sendMessage', messageData);
-  //   setMessages((prev) => [...prev, messageData]);
-  //   setMessageInput('');
-  //   setFileList([]);
-  // };
-  // Gửi tin nhắn qua API
   const handleSendMessage = async () => {
     if (!currentUser || !selectedUser) {
       message.error('Vui lòng đăng nhập và chọn người nhận trước khi gửi tin nhắn');
-      return;
-    }
-    if (!messageInput && fileList.length === 0) {
-      message.warning('Vui lòng nhập nội dung hoặc chọn file để gửi');
       return;
     }
     const formData = new FormData();
@@ -472,6 +294,15 @@ useEffect(() => {
     if (fileList.length > 0 && fileList[0].originFileObj) {
       formData.append('file', fileList[0].originFileObj);
     }
+    const newMessage = {
+      senderId: currentUser.userId,
+      receiverId: selectedUser.userId,
+      content: messageInput,
+      type: fileList.length > 0 ? 'file' : 'text',
+      fileUrl: fileList.length > 0 ? fileList[0].originFileObj : null,
+      isRead: false,
+      timestamp: new Date().toISOString(),
+    };
 
     try {
       const response = await fetch('http://localhost:5000/api/chat/', {
@@ -489,19 +320,20 @@ useEffect(() => {
         }
         throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}`);
       }
-      // Xử lý dữ liệu trả về từ server
-    const savedMessage = await response.json();
-  
-    // Cập nhật messages với dữ liệu từ server (tránh trùng lặp với Socket.IO)
-    setMessages((prev) => {
-      if (prev.some((msg) => msg.messageId === savedMessage.messageId)) {
-        return prev; // Tránh trùng lặp nếu tin nhắn đã được thêm bởi Socket.IO
-      }
-      return [...prev, savedMessage].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    });
+      const savedMessage = await response.json();
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          msg.senderId === newMessage.senderId &&
+          msg.receiverId === newMessage.receiverId &&
+          msg.content === newMessage.content &&
+          msg.timestamp === newMessage.timestamp
+            ? { ...savedMessage }
+            : msg
+        )
+      );
       setMessageInput('');
       setFileList([]);
-      fetchConversations() // Cập nhật danh sách tin nhắn sau khi gửi
+      fetchConversations();
     } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
       message.error('Không thể gửi tin nhắn, vui lòng thử lại');
@@ -522,11 +354,10 @@ const menu = (
     </Menu>
   );
 
-  // Nội dung của EmojiPicker
   const emojiPickerContent = (
     <EmojiPicker onEmojiClick={handleEmojiClick} />
   );
-  // Xử lý xóa tin nhắn cục bộ 
+
   const handleDeleteMessage = (msg) => {
     Modal.confirm({
       title: 'Xóa tin nhắn',
@@ -535,6 +366,7 @@ const menu = (
       okType: 'danger',
       cancelText: 'Hủy',
       onOk: () => {
+        setIsDeleting(!isDeleting);
         setMessages((prevMessages) =>
           prevMessages.map((message) =>
             message.messageId === msg.messageId
@@ -542,21 +374,14 @@ const menu = (
               : message
           )
         );
-           // Lưu tin nhắn đã xóa vào localStorage
-           const deletedMessages = JSON.parse(localStorage.getItem('deletedMessages')) || [];
-           localStorage.setItem(
-             'deletedMessages',
-             JSON.stringify([
-               ...deletedMessages,
-               msg
-             ])
-           );
-           
+        const deletedMessages = JSON.parse(localStorage.getItem('deletedMessages') || '[]');
+        localStorage.setItem(
+          'deletedMessages',
+          JSON.stringify([...deletedMessages, msg])
+        );
       },
-        
     });
   };
-  
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={350} style={{ background: '#fff', borderRight: '1px solid #e8e8e8' }}>
@@ -564,11 +389,21 @@ const menu = (
           <Dropdown overlay={menu} trigger={['click']}>
             <Avatar src={avatar} style={{ cursor: 'pointer', marginRight: '20px' }} />
           </Dropdown>
-
-          <SearchUserModel style={{ fontSize: '20px' }} setSelectedUser={setSelectedUser} />
-          <ListFriendModal style={{ fontSize: '20px' }} /> 
-     
-          <Button type="text" icon={<TeamOutlined style={{ fontSize: '20px' }} />} />
+          <SearchUserModel
+            style={{ fontSize: '20px' }}
+            setSelectedUser={setSelectedUser}
+            userId={currentUser?.userId}
+            socket={isSocketConnected ? socketRef.current : null} // Chỉ truyền socket khi đã kết nối
+          />
+          <ListFriendModal
+  visible={isFriendListModalVisible} // Kiểm soát hiển thị bằng prop visible
+  onCancel={handleCancelFriendListModal} // Sử dụng hàm đóng modal mới
+  userProfile={userProfile}
+  setSelectedUser={setSelectedUser}
+  socket={isSocketConnected ? socketRef.current : null}
+/>
+<Button type="text" icon={<TeamOutlined style={{ fontSize: '20px' }} />} onClick={handleOpenFriendList} />
+          {/* <Button type="text" icon={<TeamOutlined style={{ fontSize: '20px' }} />} /> */}
           <Button type="text" icon={<UserOutlined style={{ fontSize: '20px' }} />} />
           <Button type="text" icon={<SettingOutlined style={{ fontSize: '20px' }} />} onClick={handleLogout} />
         </div>
@@ -596,7 +431,6 @@ const menu = (
                 description={
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text ellipsis style={{ color: '#888' }}>
-
                       {item.lastMessage}
                     </Text>
                     {item.unread > 0 && (
@@ -609,10 +443,6 @@ const menu = (
           )}
         />
       </Sider>
-
-
-
-
       <Content style={{ padding: '20px', background: '#f0f2f5', maxHeight: '100vh' }}>
         {selectedUser ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -630,7 +460,6 @@ const menu = (
                 {selectedUser.username}
               </Title>
             </div>
-            {/* Danh sách tin nhắn */}
             <div
               style={{
                 flex: 1,
@@ -640,51 +469,45 @@ const menu = (
               }}
             >
               {messages.map((msg, index) =>
-              deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? null : (
-                <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    justifyContent: msg.senderId === userProfile.userId ? 'flex-end' : 'flex-start',
-                    marginBottom: '10px',
-                  }}
-                >
+                deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? null : (
                   <div
+                    key={index}
                     style={{
-                      maxWidth: '60%',
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: msg.senderId === userProfile.userId ? '#dbebff' : '#fff',
-                      color: msg.senderId === userProfile.userId ? '#fff' : '#000',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      display: 'flex',
+                      justifyContent: msg.senderId === userProfile.userId ? 'flex-end' : 'flex-start',
+                      marginBottom: '10px',
                     }}
                   >
-
-                    {deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? (
-                      <Text style={{ color: '#888' }}>Tin nhắn đã xóa</Text>
-                    ) : (
-                      <MessageContent msg={msg} />
-                    )}
-
-
-                    <div style={{ fontSize: '10px', marginTop: '5px', opacity: 1, color: '#000', textAlign: 'center' }}>
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    <div
+                      style={{
+                        maxWidth: '60%',
+                        padding: '10px',
+                        borderRadius: '10px',
+                        background: msg.senderId === userProfile.userId ? '#dbebff' : '#fff',
+                        color: msg.senderId === userProfile.userId ? '#fff' : '#000',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      {deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? (
+                        <Text style={{ color: '#888' }}>Tin nhắn đã xóa</Text>
+                      ) : (
+                        <MessageContent msg={msg} />
+                      )}
+                      <div style={{ fontSize: '10px', marginTop: '5px', opacity: 1, color: '#000', textAlign: 'center' }}>
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </div>
+                      {deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? (
+                        <></>
+                      ) : (
+                        <div style={{ color: '#000', cursor: 'pointer', marginTop: '5px', textAlign: 'right', opacity: 0.5 }}>
+                          <DeleteOutlined onClick={() => handleDeleteMessage(msg)} />
+                        </div>
+                      )}
                     </div>
-                    {deletedMessages.some((deletedMsg) => deletedMsg.messageId === msg.messageId) ? (
-                      <></>
-                    ) : (
-                      <div style={{ color: '#000', cursor: 'pointer', marginTop: '5px', textAlign: 'right', opaci: 0.5 }}>
-                      <DeleteOutlined onClick={() => { handleDeleteMessage(msg) }} />
-                    </div>
-                    )}
                   </div>
-                </div>
-              ))}
+                ))}
               <div ref={messagesEndRef} />
             </div>
-
-
-            {/* Phần gửi tin nhắn : textinput và button */}
             <div style={{ padding: '10px', background: '#fff', borderTop: '1px solid #e8e8e8' }}>
               <Row gutter={8} align="middle">
                 <Col>

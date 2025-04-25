@@ -166,6 +166,9 @@ console.log('Is socket connected:', isSocketConnected);
       auth: { token, userId: currentUser.userId },
       reconnection: true,
       reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
     });
 
     socketRef.current.on('connect', () => {
@@ -220,20 +223,8 @@ console.log('Is socket connected:', isSocketConnected);
         setPendingMessages((prev) => [...prev, message]);
       }
       fetchConversations();
-    });
-
-    fetchConversations();
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current.off(`receiveMessage_${currentUser.userId}`);
-        console.log('Ngắt kết nối Socket.IO');
-        setIsSocketConnected(false);
-      }
-    };
-  }, [currentUser]);
-
+    });  
+  
   useEffect(() => {
     if (!selectedUser) return;
     const fetchMessages = async () => {
@@ -247,7 +238,6 @@ console.log('Is socket connected:', isSocketConnected);
           throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-
         const newMessages = [...data, ...pendingMessages.filter(
           (msg) =>
             (msg.senderId === selectedUser.userId && msg.receiverId === currentUser.userId) ||
@@ -314,7 +304,6 @@ console.log('Is socket connected:', isSocketConnected);
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
     try {
       const response = await fetch('http://localhost:5000/api/chat/', {
         method: 'POST',
@@ -324,6 +313,11 @@ console.log('Is socket connected:', isSocketConnected);
         body: formData,
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          message.error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+          setIsAuthenticated(false);
+          return;
+        }
         throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}`);
       }
       const savedMessage = await response.json();
@@ -346,7 +340,7 @@ console.log('Is socket connected:', isSocketConnected);
     }
   };
 
-  const menu = (
+const menu = (
     <Menu>
       <Menu.Item key="1">
         <ModalProfile userProfile={userProfile} avatarContext={avatar} setAvatarContext={setAvatar} />
@@ -388,7 +382,6 @@ console.log('Is socket connected:', isSocketConnected);
       },
     });
   };
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider width={350} style={{ background: '#fff', borderRight: '1px solid #e8e8e8' }}>

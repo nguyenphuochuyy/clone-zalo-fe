@@ -8,8 +8,6 @@ const { Title, Text } = Typography;
 
 // Thành phần hiển thị tin nhắn
 const MessageContent = ({ msg}) => {
-console.log('MessageContent:', msg);
-
   return (
     <div style={{ maxWidth: '300px', margin: '5px' }}>
       {msg.type === 'text' && (

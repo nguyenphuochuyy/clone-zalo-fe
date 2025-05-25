@@ -8,12 +8,11 @@ import {
 import Title from 'antd/es/typography/Title';
 import { data } from 'react-router-dom';
 
-const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
+const ModalProfile = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-    const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin người dùng
+    // const [profile, setProfile] = useState(userProfile); // Trạng thái thông tin người dùng
     const [file, setFile] = useState(null); // File ảnh được chọn
-    const [avatar, setAvatar] = useState(avatarContext); // Avatar mặc định
-    console.log(profile);
+    const [user , setUser] = useState(JSON.parse(localStorage.getItem('user')));
     
   const showModal = () => {
     setIsModalOpen(true);
@@ -35,7 +34,7 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      setAvatar(e.target.result); // Hiển thị preview của ảnh
+      // setAvatar(e.target.result); // Hiển thị preview của ảnh
     };
     reader.readAsDataURL(file);
     setFile(file); // Lưu file để gửi lên server
@@ -62,7 +61,7 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
       if (response.ok) {
         message.success('Cập nhật avatar thành công!');
         const data = await response.json();
-        setAvatarContext(data.avatarUrl); // Cập nhật avatar mới
+        setUser((prevUser) => ({ ...prevUser, avatar: data.avatarUrl })); // Cập nhật avatar mới
         setFile(null); // Reset file sau khi cập nhật
       } else {
         message.error('Cập nhật avatar thất bại!');
@@ -84,7 +83,7 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
     >
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 , marginTop: 16}}>
           <Avatar
-            src={avatar}
+            src={user.avartarUrl}
             size={64}
             style={{ marginRight: 16 }}
           />
@@ -105,7 +104,7 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
         </Upload>
      
           <Title Title level={5} style={{ margin: 0 , fontSize: '19px' , fontWeight: '500' , color: '#333' }}>
-            {profile.username}
+            {/* {profile.username} */}
           </Title>
         </div>
        
@@ -118,9 +117,9 @@ const ModalProfile = ({userProfile , avatarContext , setAvatarContext}) => {
         </Title>
 
         <Descriptions column={1} bordered>
-          <Descriptions.Item label="Email">{profile.email}</Descriptions.Item>
+          {/* <Descriptions.Item label="Email">{profile.email}</Descriptions.Item> */}
           <Descriptions.Item label="Ngày sinh">{}</Descriptions.Item>
-          <Descriptions.Item label="Điện thoại">{profile.phone}</Descriptions.Item>
+          {/* <Descriptions.Item label="Điện thoại">{profile.phone}</Descriptions.Item> */}
         </Descriptions>
 
       {/* Nút Cập nhật */}

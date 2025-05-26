@@ -46,8 +46,8 @@ const MessageContent = ({ msg}) => {
 
 
           <a 
-            href={msg.fileUrl} // Đường dẫn đến file
-            download // Tải xuống file khi nhấp vào
+            href={msg.fileUrl} 
+            download 
             style={{ textDecoration: 'none', color: '#000' , display: 'flex', alignItems: 'center',padding: '10px', borderRadius: '5px' }}
           >
               File đính kèm

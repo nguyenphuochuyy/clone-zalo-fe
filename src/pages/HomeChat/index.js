@@ -47,6 +47,7 @@ import {
 import ModalFowardMessage from "../../components/ModalFowardMessage/index.js";
 import ModalCreateGroup from "../../components/ModalCreateGroup/index.js";
 import ModalListMemberOfGroup from "../../components/ModalListMemberOfGroup/index.js";
+import { sendMessageToGroup } from "../../services/groupService.js";
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
@@ -76,6 +77,9 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
     useState(false);
   const [isListMemberOfGroupModalVisible, setIsListMemberOfGroupModalVisible] =
     useState(false);
+    // tạo form data
+  const formData = new FormData();
+
   const handleOpenFriendList = () => {
     setIsFriendListModalVisible(true);
   };
@@ -125,9 +129,9 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
   };
 
   const handleBeforeUpload = (file) => {
-    const isLt5M = file.size / 1024 / 1024 < 5;
-    if (!isLt5M) {
-      message.error("File phải nhỏ hơn 5MB!");
+    const isLt100M = file.size / 1024 / 1024 < 100; // Kiểm tra kích thước file < 100MB
+    if (!isLt100M) {
+      message.error("File phải nhỏ hơn 100MB!");
       return false;
     }
     return false; // Trả về false để không tự động tải lên
@@ -313,6 +317,35 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
   }, [selectedUser]);
   // hàm kết nối socket io
   const handleRecallMessage = async (msg) => {
+    // kiểm tra xem có phải là tin nhắn nhóm ko 
+  if (msg.groupId) {
+      // Thu hồi tin nhắn nhóm qua Socket.IO
+      const recallData = {
+        messageId: msg.messageId,
+        senderId: currentUser.userId,
+      };
+
+      // Gửi sự kiện recallGroupMessage
+      socketRef.current.emit("recallGroupMessage", recallData);
+
+      // Lắng nghe phản hồi groupMessageRecalled
+      socketRef.current.once("groupMessageRecalled", (recalledMessage) => {
+        setMessages((prevMessages) =>
+          prevMessages.map((message) =>
+            message.messageId === recalledMessage.messageId
+              ? { ...message, content: "Tin nhắn đã thu hồi", isRecalled: true }
+              : message
+          )
+        );
+        fetchConversations(); // Cập nhật danh sách cuộc trò chuyện
+      });
+
+      // Lắng nghe lỗi từ server
+      socketRef.current.once("error", (error) => {
+        console.error("Lỗi từ server khi thu hồi tin nhắn nhóm:", error);
+        message.error(error.message || "Không thể thu hồi tin nhắn nhóm");
+      });
+    }
     const conversationId = [currentUser.userId, selectedUser.userId]
       .sort()
       .join("#");
@@ -512,8 +545,7 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
               return conv;
             });
           });
-        }
-        else{
+        } else {
           // nếu người dùng không ở trong nhóm này thì không cập nhật tin nhắn
           // nhưng vẫn cập nhật tin nhắn chờ
           setPendingMessages((prev) => {
@@ -568,20 +600,47 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
       setFileList([]);
       fetchConversations();
     } else {
-      // gửi tin nhắn nhóm
-      const newMessage = {
-        groupId: selectedUser.groupId,
-        content: messageInput,
-        type: fileList.length > 0 ? "file" : "text",
-        fileUrl: fileList.length > 0 ? fileList[0].originFileObj : null,
-        senderId: currentUser.userId,
-        timestamp: new Date().toISOString(),
-      };
+      // Gửi tin nhắn nhóm qua HTTP POST
+      const formData = new FormData();
+      formData.append("groupId", selectedUser.groupId);
+      formData.append("content", messageInput || "");
+      if (fileList.length > 0) {
+        formData.append("file", fileList[0].originFileObj);
+        formData.append("type", "file");
+
+      }
+      else{
+        formData.append("type", "text");
+      }
+      formData.append("senderId", currentUser.userId);
+      formData.append("timestamp", new Date().toISOString());
+      
+      const response = await fetch("http://localhost:5000/api/group-chat/", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Lỗi khi gửi tin nhắn nhóm");
+      }
+      const newMessage = await response.json();
+      console.log("Tin nhắn nhóm đã gửi:", newMessage);
+      
+      console.log("Tin nhắn nhóm đã gửi:", newMessage);
       socketRef.current.emit("sendGroupMessage", newMessage);
+      // Không cần emit Socket.IO vì backend đã xử lý
+      
+    }
+        
+    
       setMessageInput("");
       setFileList([]);
-      fetchConversations();
-    }
+      await fetchConversations();
+    
   };
   const menu = (
     <Menu>
@@ -669,7 +728,10 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
         >
           <Dropdown overlay={menu} trigger={["click"]}>
             <Avatar
-              src={avatar}
+              src={
+                currentUser?.avatarUrl ||
+                "https://randomuser.me/api/portraits/men/1.jpg"
+              }
               style={{ cursor: "pointer", marginRight: "20px" }}
             />
           </Dropdown>

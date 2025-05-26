@@ -22,3 +22,18 @@
   .ant-layout-content {
     background: #fff !important;
   }
+.message-actions{
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  text-align: center;
+  position: absolute;
+  bottom: -10px;
+  left: -10px;
+  display: none;
+}
+.message-item:hover .message-actions{
+  background: #f5f5f5;
+  display: block;
+}

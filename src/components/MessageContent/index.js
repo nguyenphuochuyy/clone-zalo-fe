@@ -8,8 +8,6 @@ const { Title, Text } = Typography;
 
 // Thành phần hiển thị tin nhắn
 const MessageContent = ({ msg}) => {
-console.log('MessageContent:', msg);
-
   return (
     <div style={{ maxWidth: '300px', margin: '5px' }}>
       {msg.type === 'text' && (
@@ -48,8 +46,8 @@ console.log('MessageContent:', msg);
 
 
           <a 
-            href={msg.fileUrl} // Đường dẫn đến file
-            download // Tải xuống file khi nhấp vào
+            href={msg.fileUrl} 
+            download 
             style={{ textDecoration: 'none', color: '#000' , display: 'flex', alignItems: 'center',padding: '10px', borderRadius: '5px' }}
           >
               File đính kèm

@@ -86,10 +86,36 @@ const fetchGroupMessage = async (groupId) => {
     const friendData = await friendResponse.json();
     return friendData;
  }
+ // tạo tin nhắn mới 
+ const createMessage = async (formData) => {
+  const response = await fetch('http://localhost:5000/api/chat/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
+    body: JSON.stringify({
+      senderId : formData.senderId,
+      receiverId: formData.receiverId,
+      content: formData.content,
+      type: formData.type,
+      isRead : formData.isRead,
+      timestamp: formData.timestamp,
+    }),
+  });
+  
+  if (!response.ok) {
+    console.error('Lỗi khi tạo tin nhắn:', response.statusText);
+    return;
+  }
+  const data = await response.json();
+  return data;
+ }
 export {
   fetchListGroups,
   fetchRecallMessage,
   fetchGroupMessage,
   fetchListGroup,
-  getListFriends
+  getListFriends,
+  createMessage
 }

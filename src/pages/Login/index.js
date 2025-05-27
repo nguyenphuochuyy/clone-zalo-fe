@@ -30,7 +30,7 @@ const LoginPage = () => {
           localStorage.setItem('token', data.token); // Lưu token vào localStorage
           message.success('Đăng nhập thành công!'); // Hiển thị thông báo thành công
           // Chuyển hướng đến trang chính sau khi đăng nhập thành công
-          window.location.href = '/'; // Thay đổi đường dẫn đến trang chính của bạn
+          window.location.href = '/chat'; // Thay đổi đường dẫn đến trang chính của bạn
         } else {
           console.error('Đăng nhập:', response.statusText);
           // Xử lý lỗi đăng nhập tại đây

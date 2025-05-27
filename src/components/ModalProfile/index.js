@@ -157,8 +157,6 @@ const ModalProfile = () => {
 
         <Descriptions column={1} bordered>
           <Descriptions.Item label="Email">{user.email}</Descriptions.Item>
-          <Descriptions.Item label="Ngày sinh">{}</Descriptions.Item>
-          <Descriptions.Item label="Điện thoại">{user.phone}</Descriptions.Item>
           <Descriptions.Item label="Trạng thái">
             {user.isVerified ? <>đã xác thực</> : <>chưa xác thực</>}
           </Descriptions.Item>
@@ -172,15 +170,6 @@ const ModalProfile = () => {
             justifyContent: "space-between",
           }}
         >
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() =>
-              alert("Chức năng cập nhật thông tin chưa được triển khai!")
-            }
-          >
-            Cập nhật thông tin
-          </Button>
           {file && (
             <Button type="primary" onClick={handleUpdateAvatar}>
               Cập nhật avatar

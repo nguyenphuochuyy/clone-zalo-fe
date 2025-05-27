@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Layout } from "antd";
+import { Layout, message } from "antd";
 import { Navigate, Route, Router, Routes } from "react-router-dom";
 import LoginPage from "./pages/Login/index.js";
 import HomePage from "./pages/Home/index.js";
@@ -8,16 +8,18 @@ import VerifyEmailPage from "./pages/VerifyEmailPage/index.js";
 import VerifyTokenPage from "./pages/VerifyTokenPage/index.js";
 import HomeChat from "./pages/HomeChat/index.js";
 import ResetPasswordPage from "./pages/ResetPassword/index.js";
+import { useNavigate } from 'react-router-dom';
 // import ForgetPasswordPage from './pages/ForgetPassword/index.js';
 
 const App = () => {
   const token = localStorage.getItem("token"); // Lấy token từ localStorage
   const [isAuthenticated, setIsAuthenticated] = useState(!!token); // Trạng thái xác thực
   const [profile, setProfile] = useState(null); // Trạng thái thông tin người dùng
-  const [avt, setAvt] = useState(
-    localStorage.getItem("avt") ||
-      "https://randomuser.me/api/portraits/men/1.jpg"
-  ); // Trạng thái avatar người dùng
+  // const [avt, setAvt] = useState(
+  //   localStorage.getItem("avt") ||
+  //     "https://randomuser.me/api/portraits/men/1.jpg"
+  // ); // Trạng thái avatar người dùng
+  const navigate = useNavigate(); // Sử dụng useNavigate để điều hướng
   useEffect(() => {
     if (token) {
       setIsAuthenticated(true); // Nếu có token, đặt trạng thái xác thực là true
@@ -36,17 +38,19 @@ const App = () => {
         if (response.status === 200) {
           const data = await response.json();
           localStorage.setItem("user", JSON.stringify(data)); // Lưu thông tin người dùng vào localStorage
-          setProfile(data); // Cập nhật thông tin người dùng
-          localStorage.setItem("avt", data.avatarUrl); // Lưu avatar vào localStorage
+          setProfile(data);
+          // localStorage.setItem("avt", data.avatarUrl); // Lưu avatar vào localStorage
+          navigate("/chat"); // Điều hướng đến trang chat sau khi lấy thông tin người dùng
         } else {
           console.error("Lỗi khi lấy dữ liệu người dùng:", response.statusText);
+     
         }
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu người dùng:", error); // In lỗi nếu có
       }
     };
     getProfileUser(); // Gọi hàm lấy thông tin người dùng
-  }, [avt]); // Chạy lại khi token thay đổi
+  }, []); // Chạy lại khi token thay đổi
 
   return (
     <Routes>
@@ -62,9 +66,9 @@ const App = () => {
             <HomeChat
               setIsAuthenticated={setIsAuthenticated}
               userProfile={profile}
-              avatar={avt}
-              setAvatar={setAvt}
-            /> // Truyền hàm xác thực vào trang chính
+              // avatar={avt}
+              // setAvatar={setAvt}
+            /> 
           ) : (
             <Navigate to="/login" />
           )

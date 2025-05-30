@@ -57,7 +57,9 @@ const ModalCreateGroup = ({ visible, onCancel, onCreateGroup, friendsList = [], 
       memberIds: listFriendIds,
       avatarUrl: selectedFriends[0].avatarUrl || '',
     })
-
+    setGroupName(''); // Reset tên nhóm
+    setSelectedFriends([]); // Reset danh sách bạn bè đã chọn
+    onCancel(); // Đóng modal
   };
 
   return (

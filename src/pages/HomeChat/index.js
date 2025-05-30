@@ -29,6 +29,7 @@ import {
   MoreOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
+import { IoLogOutOutline } from "react-icons/io5";
 import { TbLockPassword } from "react-icons/tb";
 import { Navigate } from "react-router-dom";
 import ModalProfile from "../../components/ModalProfile";
@@ -49,8 +50,12 @@ import {
 import ModalFowardMessage from "../../components/ModalFowardMessage/index.js";
 import ModalCreateGroup from "../../components/ModalCreateGroup/index.js";
 import ModalListMemberOfGroup from "../../components/ModalListMemberOfGroup/index.js";
-import { sendMessageToGroup } from "../../services/groupService.js";
+import {
+  getListMemberOfGroup,
+  sendMessageToGroup,
+} from "../../services/groupService.js";
 import { getMessageType } from "../../utils/file.js";
+import { getUserInfo } from "../../services/userService.js";
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
@@ -70,6 +75,7 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [isSocketConnected, setIsSocketConnected] = useState(false); // Thêm trạng thái kết nối
   const [listGroupMessages, setListGroupMessages] = useState([]);
   const [listGroup, setListGroup] = useState([]);
@@ -228,7 +234,16 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
             avatarUrl:
               group.avatarUrl ||
               "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQydtPSKH6Z1xihd05ogcAWa_-P06vbF0wtUQ&s",
-            lastMessage: lastMessage ? lastMessage.content : "",
+            // nếu tin nhắn cuối cùng là text thì hiển thị nội dung, nếu là file thì hiển thị tên file nếu là ảnh thì hiên thị "ảnh"
+            lastMessage: lastMessage
+              ? lastMessage.type === "text"
+                ? lastMessage.content
+                : lastMessage.type === "image"
+                ? "[Hình ảnh]"
+                : lastMessage.type === "video"
+                ? "[Video]"
+                : lastMessage.fileUrl || "Tệp"
+              : "Chưa có tin nhắn",
             time:
               lastMessage && lastMessage.timestamp
                 ? lastMessage.timestamp
@@ -252,8 +267,6 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
         ...personalConversations,
         ...groupConversations,
       ].sort((a, b) => new Date(b.time) - new Date(a.time));
-      console.log("All conversations:", allConversations);
-
       setListConversation(allConversations);
     } catch (error) {
       console.error("Lỗi khi lấy danh sách cuộc trò chuyện:", error);
@@ -289,15 +302,24 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
     fetchConversations();
   }, []);
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
+useEffect(() => {
+  console.log("messagesEndRef.current:", messagesEndRef.current);
+  if (messagesEndRef.current && !loading) {
+    requestAnimationFrame(() => {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+    });
+  }
+}, [messages, loading]);
 
   useEffect(() => {
+    let isCancelled = false;
     // Kiểm tra xem người dùng đã chọn có phải là nhóm không
     if (selectedUser && selectedUser.isGroup) {
+      listGroup.map((group) => {
+        if (group.groupId === selectedUser.groupId) {
+          setSelectedGroup(group);
+        }
+      });
       // fetch danh sách tin nhắn của nhóm được chọn
       const fetchGroupMessages = async () => {
         const result = await fetchGroupMessage(selectedUser.groupId);
@@ -309,10 +331,22 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
           setMessages(result.items);
         }
       };
+
       fetchGroupMessages();
+      // cuộn xuống cuối danh sách tin nhắn
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+      return;
     }
-    if (!selectedUser) return;
+
+    if (!selectedUser) {
+      setMessages([]); // Reset messages khi không có user được chọn
+      return;
+    }
+
     const fetchMessages = async () => {
+      setLoading(true);
       try {
         const response = await fetch(
           `http://localhost:5000/api/chat/messages/${selectedUser.userId}`,
@@ -348,7 +382,6 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         );
         setMessages(newMessages);
-
         const conversationId = [currentUser.userId, selectedUser.userId]
           .sort()
           .join("#");
@@ -367,11 +400,20 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
       } catch (error) {
         console.error("Lỗi khi lấy danh sách tin nhắn:", error);
         message.error("Không thể tải tin nhắn, vui lòng thử lại");
+      } finally {
+        setLoading(false);
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+        return;
       }
     };
 
     fetchMessages();
-  }, [selectedUser]);
+    return () => {
+    isCancelled = true;
+  };
+  }, [selectedUser, currentUser]);
 
   const handleRecallMessage = async (msg) => {
     // kiểm tra xem có phải là tin nhắn nhóm ko
@@ -442,20 +484,19 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
             return;
           }
           setListGroup(response);
-          
-        }
-        catch (error) {
+        } catch (error) {
           console.error("Lỗi khi lấy danh sách nhóm:", error);
           message.error("Không thể tải danh sách nhóm, vui lòng thử lại");
         }
-    
-      }
+      };
       fetchGroups();
-      if(listGroup.length > 0) {
+      if (listGroup.length > 0) {
         listGroup.slice(0, 5).forEach((group) => {
           socketRef.current.emit("joinGroup", group.groupId);
-          console.log(`Đã gửi yêu cầu tham gia phòng cho nhóm: ${group.groupId}`);
-        })
+          console.log(
+            `Đã gửi yêu cầu tham gia phòng cho nhóm: ${group.groupId}`
+          );
+        });
       }
       setIsSocketConnected(true);
       console.log("Kết nối tới Socket.IO server thành công");
@@ -511,8 +552,7 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
             console.error("Lỗi khi đánh dấu tin nhắn đã đọc:", error);
           }
         }
-        // 1. Cập nhật danh sách tin nhắn
-        setMessages((prevMessages) => [...prevMessages, message]);
+
         // 2. Cập nhật cuộc trò chuyện (tin nhắn cuối cùng, thời gian)
         setListConversation((prevConversations) => {
           return prevConversations.map((conv) => {
@@ -535,12 +575,12 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
           (message.senderId === selectedUser.userId ||
             message.receiverId === selectedUser.userId)
         ) {
+          setMessages((prevMessages) => [...prevMessages, message]);
           const conversationId = [currentUser.userId, selectedUser.userId]
             .sort()
             .join("#");
           markMessagesAsRead(conversationId);
         }
-        //4 . Cuối cùng, cập nhật danh sách cuộc trò chuyện
         setPendingMessages((prev) => {
           if (
             prev.some(
@@ -564,7 +604,42 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
         console.error("Tin nhắn không hợp lệ:", message);
         return;
       }
-      console.log("Tin nhắn đã thu hồi:", message);
+      // nếu người dùng đang ở trong cuộc trò chuyện này thì cập nhật tin nhắn
+      if (
+        selectedUser &&
+        (message.receiverId === selectedUser.userId ||
+          message.senderId === selectedUser.userId)
+      ) {
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.timestamp === message.timestamp
+              ? {
+                  ...msg,
+                  content: "Tin nhắn đã thu hồi",
+                  isRecalled: true,
+                  type: "text",
+                }
+              : msg
+          )
+        );
+      } else {
+        // nếu không thì chỉ cần cập nhật danh sách cuộc trò chuyện
+        setListConversation((prevConversations) =>
+          prevConversations.map((conv) => {
+            if (
+              conv.userId === message.senderId ||
+              conv.userId === message.receiverId
+            ) {
+              return {
+                ...conv,
+                lastMessage: "Tin nhắn đã thu hồi",
+                time: message.timestamp,
+              };
+            }
+            return conv;
+          })
+        );
+      }
       setMessages((prevMessages) => {
         return prevMessages.map((msg) =>
           msg.messageId === message.messageId
@@ -582,43 +657,63 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
 
     // SỰ KIỆN GROUP
     // lắng nghe sự kiện tạo nhóm mới
-    socketRef.current.on(`newGroup_${currentUser.userId}`, (group) => {
-      if (group.ownerId !== currentUser.userId) {
-        message.success("Bạn đã được thêm vào nhóm mới");
-        socketRef.current.emit("joinGroup", group.groupId);    
-      }
-      setListGroupMessages((prevGroups) => {
-        const existingGroup = prevGroups.find(
-          (g) => g.groupId === group.groupId
-        );
-        if (existingGroup) {
-          return prevGroups; // Không thêm nhóm đã tồn tại
+    socketRef.current.on(
+      `newGroup_${currentUser.userId}`,
+      ({
+        groupId,
+        name,
+        ownerId,
+        members,
+        avatarUrl,
+        createdAt,
+        lastMessage,
+        unreadCount,
+      }) => {
+        if (ownerId !== currentUser.userId) {
+          message.success("Bạn đã được thêm vào nhóm mới");
+          socketRef.current.emit("joinGroup", groupId);
+          return;
         }
-        return [
-          ...prevGroups,
-          {
-            isGroup: true,
-            groupId: group.groupId,
-            username: group.name,
-            avatarUrl:
-              group.avatarUrl ||
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQydtPSKH6Z1xihd05ogcAWa_-P06vbF0wtUQ&s",
-            lastMessage: "",
-            time: group.createdAt,
-            unread: 0,
-          },
-        ];
-      });
-      fetchConversations();
-    });
+        setListGroupMessages((prevGroups) => {
+          const existingGroup = prevGroups.find((g) => g.groupId === groupId);
+          if (existingGroup) {
+            return prevGroups; // Không thêm nhóm đã tồn tại
+          }
+          return [
+            ...prevGroups,
+            {
+              isGroup: true,
+              groupId: groupId,
+              username: name,
+              avatarUrl:
+                avatarUrl ||
+                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQydtPSKH6Z1xihd05ogcAWa_-P06vbF0wtUQ&s",
+              lastMessage: "",
+              time: createdAt,
+              unread: 0,
+            },
+          ];
+        });
+        fetchConversations();
+      }
+    );
     // Lắng nghe sự kiện nhận tin nhắn nhóm
     socketRef.current.on("receiveGroupMessage", (message) => {
       if (!message || !message.groupId || !message.timestamp) {
         console.error("Tin nhắn không hợp lệ:", message);
         return;
       }
-      console.log("Nhận tin nhắn nhóm mới:", message);
-      
+      // gọi api để lấy thông tin người gửi
+      if (message.senderId === currentUser.userId) {
+        // nếu người gửi là chính mình
+        message.sender = currentUser;
+      } else {
+        // nếu người gửi không phải là chính mình, gọi api để lấy thông tin người gửi
+        getUserInfo(message.senderId).then((userInfo) => {
+          message.sender = userInfo;
+        });
+      }
+      // nếu người dùng đang ở trong nhóm này thì cập nhật tin nhắn
       if (
         selectedUser &&
         selectedUser.isGroup &&
@@ -627,13 +722,20 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
         setMessages((prevMessages) => [...prevMessages, message]);
         markMessagesAsRead(message.groupId);
       } else {
+        // nếu không thì cập nhật tin nhắn chờ và số tin nhắn chưa đọc
         setPendingMessages((prev) => {
-          if (!prev.some((msg) => msg.messageId === message.messageId)) {
-            return [...prev, message];
+          if (
+            prev.some(
+              (msg) =>
+                msg.messageId === message.messageId ||
+                (msg.timestamp === message.timestamp &&
+                  msg.content === message.content)
+            )
+          ) {
+            return prev;
           }
-          return prev;
+          return [...prev, message];
         });
-      
       }
       fetchConversations();
     });
@@ -653,25 +755,35 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
       );
     });
     // lắng nghe sự kiện giải tán nhóm
-    socketRef.current.on(`groupDisbanded_${currentUser.userId}`, (groupId , groupName) => {
-      console.log(`Nhóm ${groupName} đã bị giải tán`);
-      setListGroupMessages((prevGroups) =>
-        prevGroups.filter((group) => group.groupId !== groupId)
-      );
-      // Nếu người dùng đang ở trong nhóm bị giải tán, chuyển về cuộc trò chuyện khác
-      if (selectedUser && selectedUser.groupId === groupId) {
-        setSelectedUser(null);
+    socketRef.current.on(
+      `groupDisbanded_${currentUser.userId}`,
+      (groupId, groupName) => {
+        console.log(`Nhóm ${groupName} đã bị giải tán`);
+        setListGroupMessages((prevGroups) =>
+          prevGroups.filter((group) => group.groupId !== groupId)
+        );
+        message.success(`Nhóm ${groupName} đã bị giải tán`);
+        setSelectedUser(listConversation[0]);
         setMessages([]);
+        fetchConversations();
       }
+    );
+    // lắng nghe sự kiện joinGroup
+    socketRef.current.on(`addedToGroup_${currentUser.userId}`, (group) => {
+      socketRef.current.emit("joinGroup", group.groupId);
+      message.success(`Bạn đã được thêm vào nhóm ${group.groupName}`);
       fetchConversations();
     });
-
     // Cleanup listener
     return () => {
       socketRef.current.off("joinGroup");
       socketRef.current.off(`receiveMessage_${currentUser.userId}`);
       socketRef.current.off(`messageRecalled_${currentUser.userId}`);
       socketRef.current.off("receiveGroupMessage");
+      socketRef.current.off("groupMessageRecalled");
+      socketRef.current.off(`newGroup_${currentUser.userId}`);
+      socketRef.current.off(`groupDisbanded_${currentUser.userId}`);
+      socketRef.current.off(`addedToGroup_${currentUser.userId}`);
       socketRef.current.disconnect();
     };
   }, [selectedUser]);
@@ -750,7 +862,6 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
       }
       formData.append("senderId", currentUser.userId);
       formData.append("timestamp", new Date().toISOString());
-
       const response = await fetch("http://localhost:5000/api/group-chat/", {
         method: "POST",
         headers: {
@@ -895,7 +1006,7 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
           />
           <Button
             type="text"
-            icon={<SettingOutlined style={{ fontSize: "20px" }} />}
+            icon={<IoLogOutOutline style={{ fontSize: "20px" }} />}
             onClick={handleLogout}
           />
         </div>
@@ -1003,151 +1114,175 @@ const HomeChat = ({ setIsAuthenticated, userProfile, avatar, setAvatar }) => {
                 </Title>
               </div>
             )}
-
-            <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "20px",
-                background: "#EBECF0",
-              }}
-            >
-              {messages.map((msg, index) =>
-                deletedMessages.some(
-                  (deletedMsg) => deletedMsg.messageId === msg.messageId
-                ) ? null : (
-                  <div
-                    key={index}
-                    style={{
-                      display: "flex",
-                      justifyContent:
-                        msg.senderId === userProfile.userId
-                          ? "flex-end"
-                          : "flex-start",
-                      marginBottom: "10px",
-                      position: "relative",
-                      alignItems: "flex-end",
-                    }}
-                    className="message-item"
-                  >
+            {loading ? (
+              <Spin
+                style={{ margin: "20px auto", display: "block" }}
+                tip="Đang tải tin nhắn..."
+                size="large"
+                
+              />
+            ) : (
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "20px",
+                  background: "#EBECF0",
+                }}
+              >
+                {messages.map((msg, index) =>
+                  deletedMessages.some(
+                    (deletedMsg) => deletedMsg.messageId === msg.messageId
+                  ) ? null : (
                     <div
+                      key={index}
                       style={{
-                        maxWidth: "60%",
-                        padding: "10px",
-                        borderRadius: "10px",
-                        background:
+                        display: "flex",
+                        justifyContent:
                           msg.senderId === userProfile.userId
-                            ? "#E5F1FF"
-                            : "#fff",
-                        color:
-                          msg.senderId === userProfile.userId ? "#fff" : "#000",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                            ? "flex-end"
+                            : "flex-start",
+                        marginBottom: "10px",
                         position: "relative",
-                        marginLeft:
-                          msg.senderId !== userProfile.userId ? "10px" : "0",
-                        marginRight:
-                          msg.senderId === userProfile.userId ? "10px" : "0",
+                        alignItems: "flex-end",
                       }}
+                      className="message-item"
                     >
-                      {deletedMessages.some(
-                        (deletedMsg) => deletedMsg.messageId === msg.messageId
-                      ) ? (
-                        <span style={{ color: "#888" }}>Tin nhắn đã xóa</span>
-                      ) : (
-                        <MessageContent msg={msg} />
-                      )}
                       <div
                         style={{
-                          fontSize: "10px",
-                          marginTop: "5px",
-                          opacity: 1,
-                          color: "#000",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
+                          maxWidth: "60%",
+                          padding: "10px",
+                          borderRadius: "10px",
+                          background:
+                            msg.senderId === userProfile.userId
+                              ? "#E5F1FF"
+                              : "#fff",
+                          color:
+                            msg.senderId === userProfile.userId
+                              ? "#fff"
+                              : "#000",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                          position: "relative",
+                          marginLeft:
+                            msg.senderId !== userProfile.userId ? "10px" : "0",
+                          marginRight:
+                            msg.senderId === userProfile.userId ? "10px" : "0",
                         }}
                       >
-                        <span>
-                          {new Date(msg.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="message-actions">
-                        <Dropdown
-                          trigger={["click"]}
-                          overlay={
-                            <Menu>
-                              <Menu.Item
-                                key="copy"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(msg.content);
-                                  message.success("Đã sao chép tin nhắn");
-                                }}
-                              >
-                                Sao chép tin nhắn
-                              </Menu.Item>
-                              <Menu.Item
-                                key="forward"
-                                onClick={() => {
-                                  handleOpenModalFowardMessage(msg);
-                                }}
-                              >
-                                Chuyển tiếp tin nhắn
-                              </Menu.Item>
-                              <Menu.Item
-                                key="delete"
-                                onClick={() => handleDeleteMessage(msg)}
-                              >
-                                Xóa tin nhắn
-                              </Menu.Item>
-                              {msg.senderId === currentUser.userId && (
+                        {/* Avatar người gửi */}
+                        {selectedUser.isGroup &&
+                          msg.senderId !== currentUser.userId && (
+                            <div
+                              style={{
+                                marginRight: "10px",
+                                textAlign: "center",
+                                background: "#f0f2f5",
+                                padding: "5px",
+                              }}
+                            >
+                              <div style={{ color: "#000", fontSize: "13px" }}>
+                                {selectedGroup?.members.find(
+                                  (member) => member.userId === msg.senderId
+                                )?.username || "Người dùng"}
+                              </div>
+                            </div>
+                          )}
+                        <MessageContent msg={msg} />
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            marginTop: "5px",
+                            opacity: 1,
+                            color: "#000",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span>
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="message-actions">
+                          <Dropdown
+                            trigger={["click"]}
+                            overlay={
+                              <Menu>
                                 <Menu.Item
-                                  key="edit"
+                                  key="copy"
                                   onClick={() => {
-                                    handleRecallMessage(msg);
+                                    navigator.clipboard.writeText(msg.content);
+                                    message.success("Đã sao chép tin nhắn");
                                   }}
                                 >
-                                  Thu hồi tin nhắn
+                                  Sao chép tin nhắn
                                 </Menu.Item>
-                              )}
-                            </Menu>
-                          }
-                          placement="bottomRight"
-                        >
-                          <MoreOutlined
-                            style={{
-                              fontSize: "13px",
-                              cursor: "pointer",
-                              color:
-                                msg.senderId === userProfile.userId
-                                  ? "#fff"
-                                  : "#888",
-                            }}
-                          />
-                        </Dropdown>
+                                <Menu.Item
+                                  key="forward"
+                                  onClick={() => {
+                                    handleOpenModalFowardMessage(msg);
+                                  }}
+                                >
+                                  Chuyển tiếp tin nhắn
+                                </Menu.Item>
+                                <Menu.Item
+                                  key="delete"
+                                  onClick={() => handleDeleteMessage(msg)}
+                                >
+                                  Xóa tin nhắn
+                                </Menu.Item>
+                                {msg.senderId === currentUser.userId && (
+                                  <Menu.Item
+                                    key="edit"
+                                    onClick={() => {
+                                      handleRecallMessage(msg);
+                                    }}
+                                  >
+                                    Thu hồi tin nhắn
+                                  </Menu.Item>
+                                )}
+                              </Menu>
+                            }
+                            placement="bottomRight"
+                          >
+                            <MoreOutlined
+                              style={{
+                                fontSize: "13px",
+                                cursor: "pointer",
+                                color:
+                                  msg.senderId === userProfile.userId
+                                    ? "#fff"
+                                    : "#888",
+                              }}
+                            />
+                          </Dropdown>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              )}
-              <ModalFowardMessage
-                fowardMessageVisible={isModalFowardVisible}
-                setFowardMessageVisible={handleCancelModalFowardMessage}
-                message={fowardMessage}
-                socket={socketRef.current}
-                currentUser={currentUser}
-                setMessage={setMessages}
-              />
-              <ModalListMemberOfGroup
-                visible={isListMemberOfGroupModalVisible}
-                onClose={() => setIsListMemberOfGroupModalVisible(false)}
-                groupId={selectedUser.groupId}
-                currentUserId={userProfile.userId}
-                socket={socketRef.current}
-                fetchConversations={fetchConversations}
-                currentUser={currentUser}
-              />
-              <div ref={messagesEndRef} />
-            </div>
+                  )
+                )}
+                <ModalFowardMessage
+                  fowardMessageVisible={isModalFowardVisible}
+                  setFowardMessageVisible={handleCancelModalFowardMessage}
+                  message={fowardMessage}
+                  socket={socketRef.current}
+                  currentUser={currentUser}
+                  setMessage={setMessages}
+                />
+                <ModalListMemberOfGroup
+                  visible={isListMemberOfGroupModalVisible}
+                  onClose={() => setIsListMemberOfGroupModalVisible(false)}
+                  groupId={selectedUser.groupId}
+                  currentUserId={userProfile.userId}
+                  socket={socketRef.current}
+                  fetchConversations={fetchConversations}
+                  currentUser={currentUser}
+                />
+                <div ref={messagesEndRef} />
+              </div>
+           
+            )}
+
             <div
               style={{
                 padding: "10px",

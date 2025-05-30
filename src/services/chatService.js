@@ -10,7 +10,7 @@ const fetchListGroups = async () => {
     });
     if (response.status === 200) {
       const data = await response.json();
-      return data; // Trả về dữ liệu nhóm
+      return data; 
     } else {
       throw new Error("Không thể thu hồi tin nhắn sau 5 phút !");
     }

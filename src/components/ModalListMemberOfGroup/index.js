@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -31,7 +30,7 @@ const ModalListMemberOfGroup = ({
   currentUserId,
   socket,
   fetchConversations,
-  currentUser
+  currentUser,
 }) => {
   // State lưu trữ danh sách thành viên
   const [members, setMembers] = useState([]);
@@ -41,9 +40,8 @@ const ModalListMemberOfGroup = ({
   const [isAdmin, setIsAdmin] = useState(false);
   // State kiểm tra người dùng hiện tại có phải là phó nhóm không
   const [isSubAdmin, setIsSubAdmin] = useState(false);
- const [isGroupAddMemberVisible, setIsGroupAddMemberVisible] = useState(false);
+  const [isGroupAddMemberVisible, setIsGroupAddMemberVisible] = useState(false);
 
-  
   // Hàm lấy danh sách nhóm của người dùng
   const getListGroups = async () => {
     try {
@@ -59,6 +57,18 @@ const ModalListMemberOfGroup = ({
           );
           setIsAdmin(currentMember?.role === "admin");
           setIsSubAdmin(currentMember?.role === "co-admin");
+          // lấy danh sách thông tin người dùng
+          const memberPromises = group.members.map(async (member) => {
+            const userInfo = await getUserInfo(member.userId);
+            return {
+              ...member,
+              username: userInfo?.username || "Không rõ",
+              avatarUrl: userInfo?.avatarUrl || "",
+            };
+          });
+          const memberDetails = await Promise.all(memberPromises);
+          setMembers(memberDetails);
+          console.log("Danh sách thành viên nhóm:", memberDetails);
         }
       }
     } catch (error) {
@@ -111,13 +121,19 @@ const ModalListMemberOfGroup = ({
         );
         setCurrentGroup((prev) => ({
           ...prev,
-          members: prev.members.filter((member) => member.userId !== data.userId),
+          members: prev.members.filter(
+            (member) => member.userId !== data.userId
+          ),
         }));
       } else if (data.type === "role_updated") {
         setMembers((prev) =>
           prev.map((member) =>
             member.userId === data.userId
-              ? { ...member, role: data.group.members.find(m => m.userId === data.userId).role }
+              ? {
+                  ...member,
+                  role: data.group.members.find((m) => m.userId === data.userId)
+                    .role,
+                }
               : member
           )
         );
@@ -126,14 +142,15 @@ const ModalListMemberOfGroup = ({
           members: data.group.members,
         }));
       } else if (data.type === "owner_changed") {
-        message.info(
-          `Trưởng nhóm mới: ${data.userEmail}`
-        );
+        message.info(`Trưởng nhóm mới: ${data.userEmail}`);
         setMembers((prev) =>
           prev.map((member) =>
             member.userId === data.userId
               ? { ...member, role: "admin" }
-              : { ...member, role: member.role === "admin" ? "member" : member.role }
+              : {
+                  ...member,
+                  role: member.role === "admin" ? "member" : member.role,
+                }
           )
         );
         setCurrentGroup((prev) => ({
@@ -152,12 +169,10 @@ const ModalListMemberOfGroup = ({
 
     // Lắng nghe sự kiện nhóm bị giải tán
     socket.on(`groupDisbanded_${currentUserId}`, (data) => {
-      message.warning(`Nhóm ${data.groupName} đã bị giải tán`);
+      message.success(`Nhóm ${data.groupName} đã bị giải tán`);
       fetchConversations();
       onClose();
     });
-    // lắng nghe sự kiện được thêm vào nhóm
-    
 
     // Cleanup listeners
     return () => {
@@ -186,7 +201,9 @@ const ModalListMemberOfGroup = ({
   // Hàm xử lý khi xóa thành viên
   const handleRemoveMember = (memberId) => {
     if (!isAdmin && !isSubAdmin) {
-      message.error("Chỉ trưởng nhóm hoặc phó nhóm mới có quyền xóa thành viên");
+      message.error(
+        "Chỉ trưởng nhóm hoặc phó nhóm mới có quyền xóa thành viên"
+      );
       return;
     }
     if (memberId === currentUserId) {
@@ -237,10 +254,13 @@ const ModalListMemberOfGroup = ({
     }
     Modal.confirm({
       title: "Xác nhận bổ nhiệm trưởng nhóm",
-      content: "Bạn có chắc chắn muốn chuyển giao quyền trưởng nhóm? Bạn sẽ trở thành thành viên thường sau khi thực hiện hành động này.",
+      content:
+        "Bạn có chắc chắn muốn chuyển giao quyền trưởng nhóm? Bạn sẽ trở thành thành viên thường sau khi thực hiện hành động này.",
       onOk: () => {
         socket.once("groupOwnerChanged", (data) => {
-          message.success(`Đã bổ nhiệm thành viên ${data.userId} làm trưởng nhóm mới`);
+          message.success(
+            `Đã bổ nhiệm thành viên ${data.userId} làm trưởng nhóm mới`
+          );
         });
         socket.once("error", (data) => {
           message.error(data.message);
@@ -292,59 +312,60 @@ const ModalListMemberOfGroup = ({
                 }}
               >
                 <Space size="middle">
-                  <Avatar src={member.avatar} size={40} />
+                  <Avatar src={member.avatarUrl} size={40} />
                   <Text strong style={{ fontSize: 16 }}>
                     {member.username}
                   </Text>
                   {member.role === "admin" && (
-                    <CrownOutlined
-                      style={{ color: "gold", fontSize: 18 }}
-                      title="Chủ nhóm"
-                    />
+                    <Text strong style={{ color: "#ff4d4f" }}>
+                      Trưởng nhóm
+                    </Text>
                   )}
                   {member.role === "co-admin" && (
-                    <UserSwitchOutlined
-                      style={{ color: "#1890ff", fontSize: 18 }}
-                      title="Phó nhóm"
-                    />
+                    <Text strong style={{ color: "#faad14" }}>
+                      Phó nhóm
+                    </Text>
                   )}
                 </Space>
                 {/* Hiển thị dropdown cho admin hoặc sub-admin, trừ chính người dùng hoặc admin */}
-                {(isAdmin || isSubAdmin) && member.userId !== currentUserId && member.role !== "admin" && (
-                  <Dropdown
-                    trigger={["click"]}
-                    overlay={
-                      <Menu>
-                        <Menu.Item
-                          key="appoint-sub-admin"
-                          onClick={() => handleAppointSubAdmin(member.userId)}
-                          icon={<UserSwitchOutlined />}
-                          disabled={!isAdmin} // Chỉ admin được bổ nhiệm phó nhóm
-                        >
-                          Bổ nhiệm phó nhóm
-                        </Menu.Item>
-                        <Menu.Item
-                          key="appoint-admin"
-                          onClick={() => handleAppointAdmin(member.userId)}
-                          icon={<CrownOutlined />}
-                      
-                        >
-                          Bổ nhiệm trưởng nhóm
-                        </Menu.Item>
-                        <Menu.Item
-                          key="remove-member"
-                          danger
-                          onClick={() => handleRemoveMember(member.userId)}
-                          icon={<DeleteOutlined />}
-                        >
-                          Xóa thành viên
-                        </Menu.Item>
-                      </Menu>
-                    }
-                  >
-                    <Button icon={<UserSwitchOutlined />} type="text" />
-                  </Dropdown>
-                )}
+                {(isAdmin || isSubAdmin) &&
+                  member.userId !== currentUserId &&
+                  member.role !== "admin" &&
+                  member.role !== "co-admin" && (
+                    <Dropdown
+                      trigger={["click"]}
+                      overlay={
+                        <Menu>
+                          <Menu.Item
+                            key="appoint-sub-admin"
+                            onClick={() => handleAppointSubAdmin(member.userId)}
+                            icon={<UserSwitchOutlined />}
+                            disabled={!isAdmin} // Chỉ admin được bổ nhiệm phó nhóm
+                          >
+                            Bổ nhiệm phó nhóm
+                          </Menu.Item>
+                          <Menu.Item
+                            key="appoint-admin"
+                            onClick={() => handleAppointAdmin(member.userId)}
+                            icon={<CrownOutlined />}
+                            disabled={!isAdmin} // Chỉ admin được bổ nhiệm trưởng nhóm
+                          >
+                            Bổ nhiệm trưởng nhóm
+                          </Menu.Item>
+                          <Menu.Item
+                            key="remove-member"
+                            danger
+                            onClick={() => handleRemoveMember(member.userId)}
+                            icon={<DeleteOutlined />}
+                          >
+                            Xóa thành viên
+                          </Menu.Item>
+                        </Menu>
+                      }
+                    >
+                      <Button icon={<UserSwitchOutlined />} type="text" />
+                    </Dropdown>
+                  )}
               </div>
             </List.Item>
           )}
@@ -362,10 +383,30 @@ const ModalListMemberOfGroup = ({
           type="primary"
           icon={<UserAddOutlined />}
           onClick={handleAddMember}
-          disabled= {!isAdmin && !isSubAdmin}
+          disabled={!isAdmin && !isSubAdmin}
         >
           Thêm thành viên
         </Button>
+        {isAdmin && (
+          <Button
+            type="primary"
+            danger
+            onClick={() => {
+              Modal.confirm({
+                title: "Xác nhận giải tán nhóm",
+                content: "Bạn có chắc chắn muốn giải tán nhóm này không?",
+                onOk: () => {
+                  socket.emit("group:disband", {
+                    groupId,
+                    userId: currentUserId,
+                  });
+                },
+              });
+            }}
+          >
+            Giải tán nhóm
+          </Button>
+        )}
         <Button danger onClick={handleLeaveGroup}>
           Rời nhóm
         </Button>
@@ -377,6 +418,7 @@ const ModalListMemberOfGroup = ({
         currentUser={currentUser}
         socket={socket}
         onMemberAdded={""}
+        setMembers={setMembers}
       />
     </Modal>
   );

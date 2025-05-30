@@ -25,6 +25,7 @@ const ModalFowardMessage = ({
   message,
   socket,
   currentUser,
+  setMessage
 }) => {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -54,8 +55,6 @@ const ModalFowardMessage = ({
   }, []);
 
   const handleFowardMessage = async (friend) => {
-    console.log(message);
-    // const { messageId, senderId, targetId, targetType, content, type, fileUrl, timestamp, isForwarded, originalSenderId } = data;
     const data = {
       messageId: message.messageId,
       senderId: currentUser.userId,
@@ -69,6 +68,8 @@ const ModalFowardMessage = ({
       originalSenderId: currentUser.userId,
     };
     socket.emit("forwardMessage", data);
+    console.log("Forwarding message to:", data);
+    
     setFowardMessageVisible(false);
   };
 
@@ -79,7 +80,7 @@ const ModalFowardMessage = ({
       onCancel={setFowardMessageVisible}
       footer={null}
       width={600}
-      bodyStyle={{ maxHeight: "70vh", overflowY: "auto" }}
+      bodyStyle={{ maxHeight: "100vh", overflowY: "auto" }}
     >
       <>
         <Divider />

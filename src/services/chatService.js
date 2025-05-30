@@ -1,3 +1,5 @@
+import { message } from "antd";
+
 const fetchListGroups = async () => {
    try{
     const response = await fetch("http://localhost:5000/api/group/list", {
@@ -10,7 +12,7 @@ const fetchListGroups = async () => {
       const data = await response.json();
       return data; // Trả về dữ liệu nhóm
     } else {
-      console.error("Lỗi khi lấy danh sách nhóm:", response.statusText);
+      throw new Error("Không thể thu hồi tin nhắn sau 5 phút !");
     }
    }catch (error) {
     console.error("Lỗi khi lấy danh sách nhóm:", error); // In lỗi nếu có
@@ -33,7 +35,7 @@ const fetchRecallMessage = async (conversationId, timestamp) => {
       const data = await response.json();
       return data; 
     } else {
-      console.error("Lỗi khi lấy danh sách nhóm:", response.statusText);
+      throw new Error("Không thể thu hồi tin nhắn sau 5 phút !");
     }
    }catch (error) {
     console.error("Lỗi khi lấy danh sách nhóm:", error); // In lỗi nếu có
@@ -52,8 +54,6 @@ const fetchGroupMessage = async (groupId) => {
       return data;
     } catch (error) {
       console.log("Lỗi khi lấy danh sách nhóm:", error);
-    
-      
     }
 }
 

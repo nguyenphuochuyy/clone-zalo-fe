@@ -132,7 +132,7 @@ const SearchUserModel = ({ setSelectedUser, userId, socket }) => {
             <div style={{ textAlign: 'center', padding: '20px 0', border: '1px solid #f0f0f0' }}>
               <Avatar
                 size={80}
-                src={user?.avatarUrl}
+                src={user?.avatarUrl || "https://randomuser.me/api/portraits/men/1.jpg"}
                 icon={!user?.avatarUrl && <UserOutlined />}
                 style={{ marginBottom: 16 }}
               />

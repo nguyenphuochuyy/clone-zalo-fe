@@ -55,9 +55,6 @@ const ListFriendModal = ({ visible, onCancel, userProfile, setSelectedUser, sock
 
   useEffect(() => {
     if (!socket || !userProfile?.userId) return;
-
-    console.log(`Listening for receiveFriendRequest_${userProfile.userId}`); // Log khi bắt đầu lắng nghe
-
     const handleReceiveFriendRequest = (request) => {
       console.log('--- HANDLE RECEIVE FRIEND REQUEST CALLED ---');
       console.log('Nhận lời mời kết bạn (Socket):', request);

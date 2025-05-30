@@ -115,16 +115,11 @@ const ModalListMemberOfGroup = ({
     // Lắng nghe sự kiện cập nhật thành viên nhóm
     socket.on(`groupMemberUpdated_${groupId}`, (data) => {
       if (data.type === "member_removed") {
-        // message.info(`Thành viên ${data.userEmail} đã bị xóa khỏi nhóm.`);
+
         setMembers((prev) =>
           prev.filter((member) => member.userId !== data.userId)
         );
-        setCurrentGroup((prev) => ({
-          ...prev,
-          members: prev.members.filter(
-            (member) => member.userId !== data.userId
-          ),
-        }));
+       
       } else if (data.type === "role_updated") {
         setMembers((prev) =>
           prev.map((member) =>
@@ -142,7 +137,7 @@ const ModalListMemberOfGroup = ({
           members: data.group.members,
         }));
       } else if (data.type === "owner_changed") {
-        message.info(`Trưởng nhóm mới: ${data.userEmail}`);
+        message.info(`Đã cập nhật quyền sở hữu nhóm`);
         setMembers((prev) =>
           prev.map((member) =>
             member.userId === data.userId
@@ -158,6 +153,18 @@ const ModalListMemberOfGroup = ({
           ownerId: data.userId,
           members: data.group.members,
         }));
+      }
+      else if(data.type === "member_added") {
+        const newMember = data.group.members.find(
+          (member) => member.userId === data.userId
+        );
+        if (newMember) {
+          setMembers((prev) => [...prev, newMember]);
+          setCurrentGroup((prev) => ({
+            ...prev,
+            members: [...prev.members, newMember],
+          }));
+        }
       }
     });
 
@@ -216,7 +223,7 @@ const ModalListMemberOfGroup = ({
       memberIdToRemove: memberId,
     });
     socket.on("memberRemoved", (data) => {
-      message.success(`Đã xóa thành viên ${data.userId} thành công`);
+      message.success(data.message);
     });
     socket.once("error", (data) => {
       message.error(data.message);
@@ -224,7 +231,7 @@ const ModalListMemberOfGroup = ({
   };
 
   // Hàm xử lý khi bổ nhiệm phó nhóm
-  const handleAppointSubAdmin = (memberId) => {
+  const handleAppointSubAdmin = (member) => {
     if (!isAdmin) {
       message.error("Chỉ trưởng nhóm mới có quyền bổ nhiệm phó nhóm");
       return;
@@ -232,42 +239,16 @@ const ModalListMemberOfGroup = ({
     socket.emit("assignCoAdmin", {
       groupId,
       userId: currentUserId,
-      newAdminId: memberId,
+      newAdminId: member.userId,
     });
     socket.once("coAdminAssigned", (data) => {
-      message.success(`Đã bổ nhiệm thành viên ${data.userId} làm phó nhóm`);
+      message.success(`Đã bổ nhiệm thành viên ${data.username} làm phó nhóm`);
     });
     socket.once("error", (data) => {
       message.error(data.message);
     });
   };
 
-  // Hàm xử lý khi bổ nhiệm trưởng nhóm
-  const handleAppointAdmin = (memberId) => {
-    if (!isAdmin) {
-      message.error("Chỉ trưởng nhóm mới có quyền bổ nhiệm trưởng nhóm mới");
-      return;
-    }
-    if (memberId === currentUserId) {
-      message.error("Bạn đã là trưởng nhóm");
-      return;
-    }
-    Modal.confirm({
-      title: "Xác nhận bổ nhiệm trưởng nhóm",
-      content:
-        "Bạn có chắc chắn muốn chuyển giao quyền trưởng nhóm? Bạn sẽ trở thành thành viên thường sau khi thực hiện hành động này.",
-      onOk: () => {
-        socket.once("groupOwnerChanged", (data) => {
-          message.success(
-            `Đã bổ nhiệm thành viên ${data.userId} làm trưởng nhóm mới`
-          );
-        });
-        socket.once("error", (data) => {
-          message.error(data.message);
-        });
-      },
-    });
-  };
 
   // Giao diện của modal
   return (
@@ -330,27 +311,18 @@ const ModalListMemberOfGroup = ({
                 {/* Hiển thị dropdown cho admin hoặc sub-admin, trừ chính người dùng hoặc admin */}
                 {(isAdmin || isSubAdmin) &&
                   member.userId !== currentUserId &&
-                  member.role !== "admin" &&
-                  member.role !== "co-admin" && (
+                 (
                     <Dropdown
                       trigger={["click"]}
                       overlay={
                         <Menu>
                           <Menu.Item
                             key="appoint-sub-admin"
-                            onClick={() => handleAppointSubAdmin(member.userId)}
+                            onClick={() => handleAppointSubAdmin(member)}
                             icon={<UserSwitchOutlined />}
-                            disabled={!isAdmin} // Chỉ admin được bổ nhiệm phó nhóm
+                            disabled={!isAdmin || member.role === "co-admin"}
                           >
                             Bổ nhiệm phó nhóm
-                          </Menu.Item>
-                          <Menu.Item
-                            key="appoint-admin"
-                            onClick={() => handleAppointAdmin(member.userId)}
-                            icon={<CrownOutlined />}
-                            disabled={!isAdmin} // Chỉ admin được bổ nhiệm trưởng nhóm
-                          >
-                            Bổ nhiệm trưởng nhóm
                           </Menu.Item>
                           <Menu.Item
                             key="remove-member"
